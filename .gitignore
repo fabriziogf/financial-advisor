@@ -1,0 +1,68 @@
+# ==========================================================================
+# THIS IS A PUBLIC REPOSITORY. NO PERSONAL FINANCIAL DATA MAY EVER BE COMMITTED.
+# Default posture: deny everything in data/secrets paths, allow-list exceptions.
+# ==========================================================================
+
+# --- Secrets & credentials -------------------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+credentials*.json
+*token*.json
+secrets/
+.secrets/
+
+# --- Personal financial data ----------------------------------------------
+data/*
+!data/README.md
+vault/
+*.sqlite
+*.sqlite3
+*.db
+*.duckdb
+statements/
+exports/
+*.ofx
+*.qfx
+*.qif
+*.csv
+!fixtures/**/*.csv
+!tests/**/fixtures/**/*.csv
+
+# --- Personal config (real account names, institutions, balances) ----------
+config/local*
+config/personal*
+profile.y*ml
+profile.json
+goals.y*ml
+!*.example.y*ml
+!*.example.json
+
+# --- LLM / advisory artifacts (contain your real numbers) -----------------
+reports/
+advice/
+sessions/
+*.transcript.json
+
+# --- Runtime ---------------------------------------------------------------
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+node_modules/
+dist/
+build/
+*.log
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# --- OS / editor -----------------------------------------------------------
+.DS_Store
+.idea/
+.vscode/
+!.vscode/extensions.json
