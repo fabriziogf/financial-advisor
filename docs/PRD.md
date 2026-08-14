@@ -2,15 +2,16 @@
 
 | | |
 |---|---|
-| **Status** | Draft v0.2 — foundational decisions resolved |
+| **Status** | Draft v0.3 — all open decisions resolved; ready for M0 |
 | **Author** | fabriziogf |
 | **Last updated** | 2026-08-13 |
 | **Repo** | Public. See [SECURITY.md](../SECURITY.md). |
 
-> **How to read this.** §12 records the decisions that are settled and the one that
-> isn't (D8, multi-currency — it blocks schema work). Options that were considered and
-> rejected are preserved in [Appendix A](#appendix-a--alternatives-considered), with
-> the reasoning, so a future revisit starts from the argument rather than from scratch.
+> **How to read this.** §12 records the settled decisions; nothing is currently
+> blocking implementation. Options that were considered and rejected are preserved in
+> [Appendix A](#appendix-a--alternatives-considered), each with the reasoning and a
+> trigger for revisiting it, so a future reversal starts from the argument rather than
+> from scratch.
 
 ---
 
@@ -349,19 +350,35 @@ Settled. Rejected options and their reasoning are preserved in
 | D5 | Scope of accounts in v1 | The **3–4 accounts holding most of the value**; full coverage later |
 | D6 | Investment philosophy encoded | **Passive, allocation-first, low-cost.** Advice without an explicit stance is incoherent |
 | D7 | Market data | **No provider.** Local `securities.yml` + FRED for rates; historical series deferred to M5 (§9.1) |
+| D8 | Non-US accounts / multi-currency | **Out of scope. USD only.** Money is a single scalar amount; no currency column, no FX rates, no conversion layer |
 
-### ❓ Still open
+### 12.1 Enforcing the USD-only assumption
 
-| # | Question | Why it matters |
-|---|---|---|
-| D8 | Non-US accounts / multi-currency in scope? | **Blocks M0.** Multi-currency is not a feature you add later — it changes the money type, every balance and transaction row, and every aggregation in the observation engine. Retrofitting it means rewriting the schema and re-verifying every calculation in §7 Step 3. Decide before schema work begins |
+D8 removes a large amount of complexity, but an unstated assumption decays silently.
+The failure mode is a non-USD figure entering the store and being summed as though it
+were dollars — which produces a net worth that is simply wrong, with nothing visibly
+broken.
+
+So the assumption is enforced rather than assumed:
+
+- **Import validation.** Any source declaring a currency code other than `USD` is
+  **rejected at ingest with a loud error**, never coerced or silently accepted. A
+  rejected import is a five-minute annoyance; a silently mis-summed one can go
+  unnoticed for months.
+- **No hidden conversion.** The system performs no FX conversion anywhere. If a
+  foreign-denominated asset ever needs tracking, it is entered manually as a
+  USD-valued declared asset (F1.2) with the valuation date recorded — an explicit,
+  visibly-stale estimate, not a live figure pretending to be current.
+- **Documented in the schema.** The money type carries a comment stating the
+  invariant, so the assumption is discoverable by anyone reading the model — including
+  a future me who has forgotten this conversation.
 
 ## 13. Milestones
 
 **M0 — Foundation.** Repo, security tooling, schema, CSV import, net worth statement.
 *Exit: real data loaded locally, nothing leaked.*
-> ⚠️ **Blocked on D8.** Schema work cannot start until the multi-currency question is
-> settled — it determines the money type that every other table depends on.
+> ✅ **Unblocked.** D8 resolved USD-only, which fixes the money type — schema work can
+> begin.
 
 **M1 — Observation engine.** F3.1–F3.10 as tested pure functions. CLI report output.
 *Exit: it tells me something true I didn't already know.*
@@ -445,7 +462,22 @@ rather than kept around.
 genuinely cannot be hand-maintained — that's the point to select a real provider, and
 the choice can be made then with the requirement actually in hand.
 
-### A.5 — Rejected framings
+### A.5 — Multi-currency (D8)
+
+All accounts are USD-denominated, so currency handling is out of scope entirely.
+
+| Option | Why not |
+|---|---|
+| **Full multi-currency** — currency on every amount, FX rate table, conversion at read time | The general solution, and unnecessary here. It complicates every monetary column, forces a reporting-currency decision on every aggregation, and introduces rate-staleness as a permanent correctness concern. Cost with no corresponding benefit. |
+| **Currency column, always `USD`** | The tempting middle ground: "cheap insurance." Rejected because it is insurance that doesn't pay out — a column alone doesn't convert anything, so adding real currencies later still requires the FX layer and the aggregation rework. Meanwhile every query carries a dimension that is constant, and the presence of the field implies a capability that doesn't exist. Better to state the invariant plainly (§12.1) than to gesture at flexibility that isn't there. |
+| **Store a minor-unit integer (cents) instead of `Decimal`** | A legitimate alternative that avoids float issues equally well. `Decimal` wins on readability of the rules in §7 Step 3, which are the code most likely to be read and audited by hand, and SQLite has no native decimal type either way. |
+
+**What would change this:** acquiring a genuinely foreign-denominated account —
+not merely an overseas one. The import validation in §12.1 is what surfaces that
+moment loudly instead of silently, and the rework at that point is a schema migration
+plus re-verification of the aggregations, which is the cost knowingly accepted here.
+
+### A.6 — Rejected framings
 
 Two shapes this project could have taken, recorded because they're the obvious
 suggestions and the reasons against them are the reasons the design looks like it does.
