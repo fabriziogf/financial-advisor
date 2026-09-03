@@ -13,19 +13,19 @@
 *.pfx
 credentials*.json
 *token*.json
-secrets/
-.secrets/
+/secrets/
+/.secrets/
 
 # --- Personal financial data ----------------------------------------------
 data/*
 !data/README.md
-vault/
+/vault/
 *.sqlite
 *.sqlite3
 *.db
 *.duckdb
-statements/
-exports/
+/statements/
+/exports/
 *.ofx
 *.qfx
 *.qif
@@ -43,9 +43,13 @@ goals.y*ml
 !*.example.json
 
 # --- LLM / advisory artifacts (contain your real numbers) -----------------
-reports/
-advice/
-sessions/
+# NOTE: these are anchored with a leading slash so they match ONLY at the repo
+# root. Unanchored, `reports/` also matches src/financial_advisor/reports/ and
+# silently drops source from commits — which it did once, invisibly, until a
+# fresh clone failed to build.
+/reports/
+/advice/
+/sessions/
 *.transcript.json
 
 # --- Runtime ---------------------------------------------------------------

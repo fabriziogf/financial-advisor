@@ -66,6 +66,23 @@ jobs:
           fi
           echo "✓ no personal-data paths tracked"
 
+      - name: Assert all source files are tracked
+        # The .gitignore is deliberately deny-by-default, which means it can and
+        # does swallow source. An unanchored `reports/` pattern once excluded
+        # src/financial_advisor/reports/ from a commit that looked complete —
+        # the working tree was fine and only a fresh clone revealed it.
+        run: |
+          missing=$(comm -23 \
+            <(find src tests -type f \( -name '*.py' -o -name '*.sql' \) | sort) \
+            <(git ls-files src tests | sort))
+          if [ -n "$missing" ]; then
+            echo "::error::Source files exist on disk but are not tracked:"
+            printf '  %s\n' $missing
+            echo "Check .gitignore for an unanchored directory pattern."
+            exit 1
+          fi
+          echo "✓ all source files tracked"
+
       - name: Assert no financial data file extensions tracked
         run: |
           bad=$(git ls-files \
