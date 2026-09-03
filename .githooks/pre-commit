@@ -53,8 +53,13 @@ fi
 # rules/securities.yml is tracked because it describes instruments, not holdings.
 # A share count or account reference appearing there means that boundary broke.
 if printf '%s\n' "$staged" | grep -q '^rules/securities\.ya\?ml$'; then
+    # Match YAML KEYS, not prose. An earlier version grepped for the words
+    # anywhere on an added line, which flagged the file's own comment explaining
+    # that account names don't belong in it. A holdings entry looks like
+    # `shares: 47` — the key is the signal.
     if git diff --cached rules/securities.y*ml \
-        | grep -E '^\+.*\b(shares|quantity|units|cost_basis|balance|market_value|account)\b' >/dev/null; then
+        | grep -E '^\+[[:space:]]*(shares|quantity|units|cost_basis|market_value|account|balance)[[:space:]]*:' \
+        >/dev/null; then
         echo
         echo "${RED}${BOLD}✗ rules/securities.yml appears to contain holdings data.${NC}"
         echo "  That file describes what a security IS, never that you hold any."

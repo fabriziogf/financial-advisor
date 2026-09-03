@@ -1,0 +1,23 @@
+# OPTIONAL column-mapping override for a CSV whose headers defeat auto-detection.
+#
+# You normally do not need this file. The importer identifies date, description,
+# amount, and debit/credit columns from the header row, which handles the large
+# majority of US bank and brokerage exports.
+#
+# Copy to config/local/<something>.yml (gitignored) if you hit an export that
+# detection cannot read. Deliberately NOT a tracked per-institution profile
+# library: the set of profiles present in a public repo would disclose where you
+# bank, which is the same class of leak §9.1 guards against for holdings.
+
+columns:
+  date: "Posting Date"
+  description: "Transaction Details"
+  amount: "Value"
+  # Or, for exports that split money in and out across two columns:
+  # debit: "Withdrawal"
+  # credit: "Deposit"
+  # currency: "Currency Code"
+
+# 'natural'  -> negative means money out (typical bank export)
+# 'flipped'  -> positive means money out (typical credit-card export)
+sign: natural

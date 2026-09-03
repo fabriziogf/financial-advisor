@@ -1,0 +1,62 @@
+# Securities reference data (PRD §9.1 / D7).
+#
+# TRACKED IN GIT ON PURPOSE. This file describes what an instrument IS — publicly
+# known, static facts about funds. It must NEVER record that any of them is held:
+# no share counts, no market values, no account names. Holdings live in the local
+# database outside this repo. The pre-commit hook enforces that boundary.
+#
+# Hand-maintained rather than fetched from an API, for two reasons:
+#   1. Cardinality is tiny (10-30 securities) and these values change ~never.
+#   2. Querying a market-data API for your tickers discloses your holdings list to
+#      that provider — routing around the whole privacy posture to retrieve facts
+#      that are public and typeable by hand.
+#
+# asset_class weights must sum to 1.0. Fractional weights rather than a single
+# label so blended funds can be decomposed: without look-through, a target-date
+# fund reports as one unclassified position and allocation analysis produces
+# nothing useful.
+#
+# Consumed by M1's allocation (F3.4) and fee (F3.6) checks. Examples below are
+# illustrative starting points — verify expense ratios against the fund's own
+# current prospectus before relying on them.
+
+VTI:
+  name: Vanguard Total Stock Market ETF
+  expense_ratio: "0.0003"
+  asset_class:
+    us_equity: 1.0
+
+VXUS:
+  name: Vanguard Total International Stock ETF
+  expense_ratio: "0.0005"
+  asset_class:
+    intl_equity: 1.0
+
+BND:
+  name: Vanguard Total Bond Market ETF
+  expense_ratio: "0.0003"
+  asset_class:
+    us_bond: 1.0
+
+VT:
+  name: Vanguard Total World Stock ETF
+  expense_ratio: "0.0006"
+  asset_class:
+    us_equity: 0.63
+    intl_equity: 0.37
+
+# A blended fund. This is the case that makes look-through necessary.
+VTTSX:
+  name: Vanguard Target Retirement 2060 Fund
+  expense_ratio: "0.0008"
+  asset_class:
+    us_equity: 0.54
+    intl_equity: 0.36
+    us_bond: 0.07
+    intl_bond: 0.03
+
+CASH:
+  name: Cash and equivalents
+  expense_ratio: "0.0"
+  asset_class:
+    cash: 1.0

@@ -293,7 +293,23 @@ Given the public repo, these are requirements, not aspirations. Full detail in
 - **P2** Pre-commit secret scanning (`gitleaks`) + CI scanning + GitHub push
   protection. Local hooks fail open when bypassed; CI is the backstop.
 - **P3** Credentials in the OS keychain past prototype stage. Never in `.env` long-term.
-- **P4** Database encrypted at rest.
+- **P4** **Data lives outside the repository**, at `~/.local/share/financial-advisor/`,
+  mode `0700` (DB `0600`). This is structural rather than policy: a file that is not
+  in the working tree cannot be committed by a mistaken `git add -A`, and the
+  protection does not depend on `.gitignore` staying correct.
+  *Encryption at rest is provided by FileVault (verified enabled).* Its limit,
+  stated plainly: it protects a lost, stolen, or powered-off machine and does
+  nothing against a process running as the logged-in user. SQLCipher would close
+  that gap and is deferred — all database access routes through a single
+  `db/connection.py`, so adopting it stays a one-file change plus a dump-and-reload.
+  *Revisit trigger:* the DB needs to live on a synced or cloud-backed path, or
+  untrusted code starts running on this machine.
+- **P4a** **The working tree is inside iCloud Drive** (`~/Documents` has Desktop &
+  Documents sync on). A database written next to the source would upload to Apple's
+  servers and sync to every device on the account — silently, on first import, with
+  FileVault providing no protection because the copy has already left the machine.
+  This is the single most likely way this project leaks, and P4's data location is
+  what prevents it.
 - **P5** Synthetic test fixtures only. Never "anonymized" real exports — transaction
   timing and amount patterns are re-identifying on their own.
 - **P6** No telemetry, no analytics, no crash reporting. Zero outbound calls except
