@@ -1,0 +1,89 @@
+name: security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Weekly full-history sweep. Rules improve over time; a commit that was clean
+    # under an older ruleset may not be under the current one.
+    - cron: "0 9 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  gitleaks:
+    name: secret & PII scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history: the local hook only ever saw one commit at a time, and
+          # can be bypassed with --no-verify. This is the backstop that catches
+          # what it missed.
+          fetch-depth: 0
+
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITLEAKS_CONFIG: .gitleaks.toml
+
+  hook-gate:
+    name: pre-commit gate still works
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install gitleaks
+        run: |
+          VERSION=8.30.1
+          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${VERSION}/gitleaks_${VERSION}_linux_x64.tar.gz" \
+            | tar -xz -C /usr/local/bin gitleaks
+          gitleaks version
+
+      - name: Adversarial test of the commit gate
+        # The hook silently degraded once already: `gitleaks protect` became a no-op
+        # stub in 8.30 and passed everything. Re-running the adversarial suite in CI
+        # is what catches the next such regression.
+        run: ./scripts/verify-hooks.sh
+
+  tracked-paths:
+    name: no personal data tracked
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Assert local-only paths are untracked
+        run: |
+          bad=$(git ls-files \
+            | grep -E '^(data/|reports/|advice/|sessions/|secrets/|vault/|statements/|exports/)' \
+            | grep -v '^data/README\.md$' || true)
+          if [ -n "$bad" ]; then
+            echo "::error::Personal-data paths are tracked in git:"
+            printf '  %s\n' $bad
+            exit 1
+          fi
+          echo "✓ no personal-data paths tracked"
+
+      - name: Assert no financial data file extensions tracked
+        run: |
+          bad=$(git ls-files \
+            | grep -E '\.(csv|ofx|qfx|qif|sqlite3?|db|duckdb)$' \
+            | grep -v -E '^tests/fixtures/' || true)
+          if [ -n "$bad" ]; then
+            echo "::error::Financial data files tracked outside tests/fixtures/:"
+            printf '  %s\n' $bad
+            exit 1
+          fi
+          echo "✓ no stray data files tracked"
+
+  test:
+    name: tests & lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --extra dev
+      - run: uv run ruff check .
+      - run: uv run pytest -q

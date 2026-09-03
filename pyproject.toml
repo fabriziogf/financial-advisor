@@ -1,0 +1,41 @@
+[project]
+name = "financial-advisor"
+version = "0.1.0"
+description = "Self-hosted, read-only personal financial advisor"
+requires-python = ">=3.11"
+dependencies = [
+    "pyyaml>=6.0",
+    "click>=8.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+]
+
+[project.scripts]
+fa = "financial_advisor.cli:cli"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/financial_advisor"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+# R2: money is Decimal, never float. `float(` on a monetary value is the bug this
+# guards against; flagging the constructor outright is blunt but the failure mode
+# it prevents is silent and expensive.
+[tool.ruff.lint.flake8-builtins]
+builtins-ignorelist = ["id"]

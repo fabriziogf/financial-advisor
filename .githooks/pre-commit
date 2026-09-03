@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# P2 — local secret/PII gate. Installed via `scripts/install-hooks.sh`, which sets
+# core.hooksPath to this directory so the hook is versioned rather than living
+# untracked in .git/hooks.
+#
+# This is the first line of defence, not the only one: a hook can be skipped with
+# --no-verify and does not exist until installed. CI (.github/workflows/security.yml)
+# re-runs the same scan, and GitHub push protection sits behind that.
+
+set -uo pipefail
+
+RED=$'\033[0;31m'; YELLOW=$'\033[0;33m'; GREEN=$'\033[0;32m'; BOLD=$'\033[1m'; NC=$'\033[0m'
+fail=0
+
+# --- 1. Secret & PII scan of staged content -------------------------------
+if command -v gitleaks >/dev/null 2>&1; then
+    # `gitleaks git --staged`, NOT `gitleaks protect --staged`. As of 8.30 `protect`
+    # is a deprecated stub that reports "0 commits scanned" and exits 0 on anything —
+    # a hook using it passes every leak silently. scripts/verify-hooks.sh exists
+    # because that failure is invisible without an adversarial test.
+    if ! gitleaks git --staged --config .gitleaks.toml --no-banner --redact; then
+        echo
+        echo "${RED}${BOLD}✗ gitleaks flagged staged content.${NC}"
+        echo "  Findings are redacted above. Do NOT commit and 'fix it later' —"
+        echo "  rewriting published history is unreliable. Unstage, then rotate any"
+        echo "  credential involved. See SECURITY.md."
+        fail=1
+    fi
+else
+    echo "${YELLOW}⚠ gitleaks not installed — staged content was NOT scanned.${NC}"
+    echo "  Install: brew install gitleaks   (or run scripts/install-hooks.sh)"
+    fail=1
+fi
+
+# --- 2. Structural check: nothing from a data path may be staged ----------
+# .gitignore should already prevent this. This catches the case where someone
+# reaches for `git add -f` on a path that only *looks* safe.
+staged=$(git diff --cached --name-only --diff-filter=AM)
+
+blocked=$(printf '%s\n' "$staged" \
+    | grep -E '^(data/|reports/|advice/|sessions/|secrets/|vault/|statements/|exports/)' \
+    | grep -v '^data/README\.md$' || true)
+
+if [ -n "$blocked" ]; then
+    echo
+    echo "${RED}${BOLD}✗ Staged files live in a local-only data path:${NC}"
+    printf '    %s\n' $blocked
+    echo "  These paths hold personal financial data and must never be tracked."
+    fail=1
+fi
+
+# --- 3. Reference data must stay reference data ---------------------------
+# rules/securities.yml is tracked because it describes instruments, not holdings.
+# A share count or account reference appearing there means that boundary broke.
+if printf '%s\n' "$staged" | grep -q '^rules/securities\.ya\?ml$'; then
+    if git diff --cached rules/securities.y*ml \
+        | grep -E '^\+.*\b(shares|quantity|units|cost_basis|balance|market_value|account)\b' >/dev/null; then
+        echo
+        echo "${RED}${BOLD}✗ rules/securities.yml appears to contain holdings data.${NC}"
+        echo "  That file describes what a security IS, never that you hold any."
+        echo "  Quantities and values belong in data/. See PRD §9.1."
+        fail=1
+    fi
+fi
+
+if [ "$fail" -ne 0 ]; then
+    echo
+    echo "${BOLD}Commit blocked.${NC} Override with --no-verify only if you are certain."
+    exit 1
+fi
+
+echo "${GREEN}✓ pre-commit checks passed${NC}"
+exit 0
