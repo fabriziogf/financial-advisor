@@ -20,26 +20,44 @@
 # illustrative starting points — verify expense ratios against the fund's own
 # current prospectus before relying on them.
 
+# Funds you hold that are not listed here go in the LOCAL overlay instead:
+#     ~/.local/share/financial-advisor/securities.local.yml
+# Same format, never committed. Listing them here would publish which funds you
+# own; no quantities are needed for that to be a disclosure.
+#
+# category     groups interchangeable funds, so the fee check (F3.6) can name a
+#              cheaper fund in the same category
+# diversified  true for broad index funds; leave it out for single stocks.
+#              Unstated holdings are reported as not assessed by F3.7.
+
 VTI:
   name: Vanguard Total Stock Market ETF
+  category: us_total_market
+  diversified: true
   expense_ratio: "0.0003"
   asset_class:
     us_equity: 1.0
 
 VXUS:
   name: Vanguard Total International Stock ETF
+  category: intl_total_market
+  diversified: true
   expense_ratio: "0.0005"
   asset_class:
     intl_equity: 1.0
 
 BND:
   name: Vanguard Total Bond Market ETF
+  category: us_aggregate_bond
+  diversified: true
   expense_ratio: "0.0003"
   asset_class:
     us_bond: 1.0
 
 VT:
   name: Vanguard Total World Stock ETF
+  category: global_total_market
+  diversified: true
   expense_ratio: "0.0006"
   asset_class:
     us_equity: 0.63
@@ -48,6 +66,8 @@ VT:
 # A blended fund. This is the case that makes look-through necessary.
 VTTSX:
   name: Vanguard Target Retirement 2060 Fund
+  category: target_date_2060
+  diversified: true
   expense_ratio: "0.0008"
   asset_class:
     us_equity: 0.54
@@ -57,6 +77,8 @@ VTTSX:
 
 CASH:
   name: Cash and equivalents
+  category: cash
+  diversified: true
   expense_ratio: "0.0"
   asset_class:
     cash: 1.0

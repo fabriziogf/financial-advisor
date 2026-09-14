@@ -1,0 +1,64 @@
+# Heuristic thresholds for the observation engine (PRD R3).
+#
+# Unlike rules/limits/, these are judgment calls rather than published facts. They
+# live in data rather than code for the same reason limits do: so they can be read,
+# argued with, and changed in one reviewable place — and so a change shows up as a
+# diff instead of disappearing into a function body.
+#
+# Rates and ratios are decimal fractions: 0.05 means 5%.
+# Tracked in git: nothing here describes anyone's finances.
+
+emergency_fund:                      # F3.1
+  default_target_months: 6           # used only when the profile doesn't set one
+  variable_income_target_months: 9   # default when income.stability is "variable"
+
+cashflow:                            # derived spending and income (F3.1, F3.10)
+  min_days_of_history: 60            # below this, derived figures are not trusted
+  max_history_days: 365
+  transfer_match_window_days: 4      # an outflow and inflow of equal size between
+                                     # your own accounts within this window are a transfer
+
+cash_drag:                           # F3.2
+  yield_shortfall_tolerance: 0.0050  # a yield within 0.50pp of the benchmark isn't flagged
+  checking_operating_months: 1       # checking may hold this much spending at no yield
+  attention_annual_impact: 100.00
+  medium_annual_impact: 1000.00
+
+tax_advantaged:                      # F3.3
+  medium_unclaimed_match: 500.00     # unclaimed match at or above this is MEDIUM, else LOW
+  high_unclaimed_match: 2000.00
+
+allocation:                          # F3.4
+  default_drift_tolerance: 0.05
+  unclassified_low_confidence: 0.10  # above this share unclassified, results are caveated
+  unclassified_insufficient: 0.50    # above this, the check declines to assess drift
+  balance_mismatch_tolerance: 0.02   # positions vs. reported balance
+
+location:                            # F3.5
+  min_swappable: 5000.00
+
+fees:                                # F3.6
+  high_expense_ratio: 0.0020
+  min_annual_saving: 25.00           # a cheaper same-category fund saving less than this isn't mentioned
+  medium_annual_savings: 500.00
+
+concentration:                       # F3.7
+  single_position: 0.10              # non-diversified holding as share of portfolio
+  employer_stock: 0.10
+  employer_stock_high: 0.20
+
+debt:                                # F3.8
+  high_rate: 0.08
+  high_interest_annual: 1000.00      # high-rate interest at or above this is HIGH, else MEDIUM
+  promo_warning_days: 90
+
+insurance:                           # F3.9 — crude by design; flags for professional review
+  life_income_multiple: 10
+  umbrella_net_worth_floor: 500000.00
+
+savings:                             # F3.10
+  low_savings_rate: 0.10
+
+staleness:
+  profile_review_days: 365
+  benchmark_rate_days: 14

@@ -1,0 +1,29 @@
+# IRS contribution limits for tax year 2026 (PRD R3).
+#
+# One file per tax year. When the current year's file is missing, F3.3 reports
+# insufficient data rather than borrowing another year's figures.
+#
+# Amounts are USD. "Age" means the age attained by 31 December 2026.
+
+year: 2026
+source: >-
+  IRS Notice 2025-67 (402(g), 414(v) catch-up, 401(a)(17), 414(v)(7) Roth catch-up
+  wage threshold, 219(b)(5) IRA limits); IRS news release "401(k) limit increases to
+  $24,500 for 2026, IRA limit increases to $7,500"; Revenue Procedure 2025-19 (HSA).
+  Verified against the Notice text on 2026-09-13.
+
+elective_deferral: 24500.00             # 402(g)(1): 401(k), 403(b), governmental 457, TSP
+catch_up_50: 8000.00                    # 414(v)(2)(B)(i): age 50 or older
+catch_up_60_63: 11250.00                # 414(v)(2)(E)(i): ages 60-63 only, instead of catch_up_50
+compensation_limit: 360000.00           # 401(a)(17): pay considered for employer contributions
+roth_catch_up_wage_threshold: 150000.00 # 414(v)(7)(A): 2025 FICA wages above this make 2026
+                                        # catch-up contributions Roth-only
+ira: 7500.00                            # 219(b)(5)(A)
+ira_catch_up_50: 1100.00                # 219(b)(5)(B)
+hsa_self: 4400.00                       # self-only coverage (Rev. Proc. 2025-19)
+hsa_family: 8750.00                     # family coverage (Rev. Proc. 2025-19)
+hsa_catch_up_55: 1000.00                # statutory; not indexed for inflation
+
+notes: >-
+  The higher catch-up applies only at ages 60 through 63; from 64 the standard
+  age-50 catch-up applies again.

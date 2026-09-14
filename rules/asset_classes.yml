@@ -1,0 +1,47 @@
+# Asset-class vocabulary (PRD §9.1, F3.4, F3.5).
+#
+# The keys used in rules/securities.yml `asset_class` weights and in the profile's
+# target allocation must come from this list. An unknown key is an error at load
+# time rather than a silently separate bucket — "us_equities" next to "us_equity"
+# would split one allocation into two and understate both.
+#
+# tax_efficiency drives the asset-location check (F3.5):
+#   inefficient — returns arrive mostly as ordinary income (interest, non-qualified
+#                 dividends), so holding them in a taxable account costs more
+#   efficient   — returns arrive mostly as qualified dividends and deferred gains
+#   neutral     — no meaningful location preference is assumed
+
+us_equity:
+  label: US stocks
+  equity: true
+  tax_efficiency: efficient
+
+intl_equity:
+  label: International stocks
+  equity: true
+  tax_efficiency: efficient
+
+us_bond:
+  label: US bonds
+  equity: false
+  tax_efficiency: inefficient
+
+intl_bond:
+  label: International bonds
+  equity: false
+  tax_efficiency: inefficient
+
+reit:
+  label: Real estate (REITs)
+  equity: true
+  tax_efficiency: inefficient
+
+cash:
+  label: Cash & equivalents
+  equity: false
+  tax_efficiency: neutral
+
+other:
+  label: Other
+  equity: false
+  tax_efficiency: neutral

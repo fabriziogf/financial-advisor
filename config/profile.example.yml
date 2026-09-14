@@ -1,0 +1,62 @@
+# Financial profile (PRD F1.7) — the inputs no bank export contains.
+#
+# THIS IS AN EXAMPLE WITH FICTIONAL FIGURES. The repo is public: never put real
+# numbers in this file. Your real profile lives OUTSIDE the repo, at
+#     ~/.local/share/financial-advisor/profile.yml
+# `fa profile init` copies this file there with owner-only permissions.
+#
+# Conventions
+#   * Numbers may be bare or quoted. Either way they are read as exact decimals —
+#     the loader never creates a float.
+#   * Percentages are written as percent: 6 means 6%.
+#   * Leave out anything you don't know. The checks that need it will report
+#     "insufficient data" and say what to add. Nothing is guessed.
+#   * "Not stated" and "none" differ. Deleting a section means you haven't said;
+#     writing `employer_plan: null` means you have no plan. Only the second one
+#     marks a check as not applicable.
+
+reviewed_on: 2026-01-01          # when you last confirmed these figures
+
+household:
+  birth_year: 1990               # catch-up contribution limits depend on age
+  dependents: 0                  # drives the life-insurance heuristic
+
+income:
+  annual_salary: 100000.00       # gross base pay
+  stability: stable              # stable | variable — variable raises the emergency-fund default
+
+# No workplace retirement plan? Replace this section with `employer_plan: null`.
+employer_plan:
+  contribution_percent: 6        # your elective deferral as % of salary (pre-tax + Roth)
+  # Match tiers use CUMULATIVE bounds. This example is the common
+  # "100% of the first 3%, then 50% of the next 2%":
+  match:
+    - rate_percent: 100
+      up_to_percent: 3
+    - rate_percent: 50
+      up_to_percent: 5
+  employer_stock_symbol: null    # e.g. your employer's ticker, if you hold it
+
+ira:
+  contributed_this_year: 0.00
+
+# Not enrolled in an HSA-eligible high-deductible health plan? Use `hsa: null`.
+hsa:
+  coverage: self                 # self | family
+  contributed_this_year: 0.00    # include employer HSA contributions — they count toward the limit
+
+emergency_fund:
+  target_months: 6
+  monthly_essential_expenses: null   # optional override of the figure derived from transactions
+
+investments:
+  target_allocation_percent:     # asset classes from rules/asset_classes.yml; must sum to 100
+    us_equity: 54
+    intl_equity: 36
+    us_bond: 10
+  drift_tolerance_percent: 5
+
+insurance:
+  life_coverage: 0.00
+  long_term_disability: false
+  umbrella_coverage: 0.00
