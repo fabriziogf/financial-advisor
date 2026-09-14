@@ -30,7 +30,7 @@ import re
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date, timedelta
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 
 from ..money import Money
 
@@ -49,6 +49,13 @@ DAYS_PER_MONTH = Decimal("30.4375")  # 365.25 / 12
 
 _P2P = re.compile(r"\b(ZELLE|VENMO|CASH ?APP|PAYPAL|APPLE CASH)\b")
 _TRANSFER = re.compile(r"\b(TRANSFER|XFER|TRNSFR|TFR)\b")
+# Contributions to your own investment or retirement accounts that aren't imported,
+# e.g. "VANGUARD BUY ACH" is not caught, but "BROKERAGE CONTRIBUTION" and "ROTH IRA"
+# are. Without this, a monthly brokerage deposit counts as spending and the savings
+# rate reads near zero — a wrong result that looks like a finding.
+_INVESTING = re.compile(
+    r"\b(BROKERAGE|INVESTMENTS?|INVEST|CONTRIBUTION|IRA|ROTH|401 ?K|403 ?B|529 PLAN|HSA)\b"
+)
 _CARD_PAYMENT = re.compile(
     r"PAYMENT THANK YOU|AUTOPAY|AUTO PAY|AUTOMATIC PAYMENT|CARD PAYMENT|CRD PMT|"
     r"CREDIT CARD|ONLINE PAYMENT|EPAY|PAYMENT RECEIVED"
@@ -58,7 +65,7 @@ _CARD_PAYMENT = re.compile(
 # charge and an unrelated $12.99 inflow two days apart would cancel each other out.
 _MOVEMENT = re.compile(
     r"\b(TRANSFER|XFER|TRNSFR|TFR|PAYMENT|PMT|ACH|DEPOSIT|CONTRIBUTION|WITHDRAWAL|"
-    r"FUNDS|ONLINE BANKING|MOBILE BANKING|AUTOPAY)\b"
+    r"FUNDS|ONLINE BANKING|MOBILE BANKING|AUTOPAY|BROKERAGE|INVESTMENTS?)\b"
 )
 
 
@@ -111,6 +118,8 @@ def classify(description: str, account_type: str, amount: Money) -> str:
         return "transfer"  # a payment received on the card, not a refund
     if _TRANSFER.search(text):
         return "transfer"
+    if amount.cents < 0 and _INVESTING.search(text):
+        return "transfer"  # saving into an account that isn't imported, not spending
     if account_type != "credit_card" and amount.cents < 0 and _CARD_PAYMENT.search(text):
         return "card_payment"
     return "ordinary"
@@ -152,6 +161,16 @@ def match_transfers(txns: list[TxnRecord], window_days: int) -> set[int]:
         if best is not None:
             matched.update((out.id, best.id))
     return matched
+
+
+def _monthly(total: Money, days: int) -> Money:
+    """A total over `days` as a monthly rate, rounded exactly once.
+
+    Multiplying by a precomputed DAYS_PER_MONTH / days factor would round that factor
+    to 28 digits first, which can tip an exact half-cent the wrong way.
+    """
+    exact = Decimal(total.cents) * DAYS_PER_MONTH / Decimal(days)
+    return Money.from_cents(int(exact.quantize(Decimal(1), rounding=ROUND_HALF_UP)))
 
 
 def summarize_cashflow(
@@ -219,9 +238,8 @@ def summarize_cashflow(
             else:
                 received += txn.amount
 
-        scale = DAYS_PER_MONTH / Decimal(days)
-        monthly_spending += spent * scale
-        monthly_income += received * scale
+        monthly_spending += _monthly(spent, days)
+        monthly_income += _monthly(received, days)
 
     paired_outflows = [t for t in in_range if t.id in paired and t.amount.is_negative()]
     return CashFlowSummary(

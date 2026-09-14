@@ -10,6 +10,18 @@ from financial_advisor.db.store import create_account, find_account
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
+@pytest.fixture(autouse=True)
+def _isolated_data_dir(tmp_path, monkeypatch):
+    """No test may read or write the real data directory: it holds personal data.
+
+    Rules loading reads securities.local.yml from there, so without this a future
+    overlay listing real holdings would silently leak into test runs.
+    """
+    monkeypatch.setenv("FA_DATA_DIR", str(tmp_path / "fa-data"))
+    monkeypatch.delenv("FA_DATABASE", raising=False)
+    monkeypatch.delenv("XDG_DATA_HOME", raising=False)
+
+
 @pytest.fixture()
 def db(tmp_path, monkeypatch):
     """A fresh database per test, redirected away from the real data directory."""

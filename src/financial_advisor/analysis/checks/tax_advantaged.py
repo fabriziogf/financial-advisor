@@ -75,13 +75,20 @@ def _match(snapshot: Snapshot, profile: Profile, limits: ContributionLimits) -> 
             key,
             TITLE_MATCH,
             "Your profile doesn't say whether you have a workplace retirement plan.",
-            ["Add an employer_plan section to your profile, or `employer_plan: null` if you have none."],
+            [
+                "Add an employer_plan section to your profile, or `employer_plan: null` "
+                "if you have none."
+            ],
         )
     plan = profile.employer_plan
     if plan is None:
-        return not_applicable(key, TITLE_MATCH, "No workplace retirement plan (employer_plan: null).")
+        return not_applicable(
+            key, TITLE_MATCH, "No workplace retirement plan (employer_plan: null)."
+        )
     if not plan.match:
-        return not_applicable(key, TITLE_MATCH, "Your workplace plan has no employer match recorded.")
+        return not_applicable(
+            key, TITLE_MATCH, "Your workplace plan has no employer match recorded."
+        )
 
     missing = []
     if profile.annual_salary is None:
@@ -90,7 +97,10 @@ def _match(snapshot: Snapshot, profile: Profile, limits: ContributionLimits) -> 
         missing.append("Set employer_plan.contribution_percent in your profile.")
     if missing or profile.annual_salary is None or plan.contribution_rate is None:
         return insufficient(
-            key, TITLE_MATCH, "The match can't be computed without salary and contribution rate.", missing
+            key,
+            TITLE_MATCH,
+            "The match can't be computed without salary and contribution rate.",
+            missing,
         )
 
     salary, rate = profile.annual_salary, plan.contribution_rate
@@ -200,7 +210,11 @@ def _plan(snapshot: Snapshot, profile: Profile, limits: ContributionLimits) -> O
             f"contributions in {year} must be designated Roth (SECURE 2.0). The test uses "
             "prior-year FICA wages; base salary is only a proxy for them here."
         )
-    inputs = ("income.annual_salary", "employer_plan.contribution_percent", f"rules/limits/{year}.yml")
+    inputs = (
+        "income.annual_salary",
+        "employer_plan.contribution_percent",
+        f"rules/limits/{year}.yml",
+    )
 
     if elected > limit:
         excess = elected - limit
@@ -250,7 +264,8 @@ def _ira(snapshot: Snapshot, profile: Profile, limits: ContributionLimits) -> Ob
         "The limit is shared across all your traditional and Roth IRAs.",
         "Roth IRA eligibility and traditional IRA deductibility both phase out with income; "
         "neither is assessed here.",
-        f"Contributions for {year} can be made until the federal tax filing deadline in {year + 1}.",
+        f"Contributions for {year} can be made until the federal tax filing deadline "
+        f"in {year + 1}.",
         *age_notes,
     ]
     inputs = ("ira.contributed_this_year", "household.birth_year", f"rules/limits/{year}.yml")
@@ -317,7 +332,9 @@ def _hsa(snapshot: Snapshot, profile: Profile, limits: ContributionLimits) -> Ob
         *age_notes,
     ]
     if profile.birth_year is not None and age >= 55:
-        assumptions.append("The age-55 catch-up is included; it doesn't apply once enrolled in Medicare.")
+        assumptions.append(
+            "The age-55 catch-up is included; it doesn't apply once enrolled in Medicare."
+        )
     inputs = ("hsa.coverage", "hsa.contributed_this_year", f"rules/limits/{year}.yml")
 
     if contributed > limit:

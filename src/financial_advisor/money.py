@@ -104,7 +104,18 @@ class Money:
             negative = True
             text = text[1:-1].strip()
 
+        # A sign ahead of the currency symbol ("-$1,234.56") is the most common way US
+        # exports write a negative amount. Exactly one sign is accepted: "--5" and
+        # "(-100)" are garbage, and reading them as numbers would hide a broken file.
+        leading_sign = text[:1] if text[:1] in ("-", "+") else ""
+        if leading_sign:
+            if negative:
+                raise MoneyParseError(f"could not parse {raw!r} as a USD amount")
+            negative = leading_sign == "-"
+            text = text[1:].strip()
         text = _CURRENCY_PREFIX_RE.sub("", text).strip()
+        if leading_sign and text[:1] in ("-", "+"):
+            raise MoneyParseError(f"could not parse {raw!r} as a USD amount")
         # A trailing sign ("1234.56-") shows up in some fixed-width exports.
         if text.endswith("-"):
             negative = True

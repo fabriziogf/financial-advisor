@@ -1,0 +1,8 @@
+Account Number,Symbol,Description,Quantity,Last Price,Current Value
+Z00000001,VTI,VANGUARD TOTAL STOCK MARKET ETF,200,300.00,"$60,000.00"
+Z00000001,BND,VANGUARD TOTAL BOND MARKET ETF,400,75.00,"$30,000.00"
+Z00000001,VTI,VANGUARD TOTAL STOCK MARKET ETF,10,300.00,"$3,000.00"
+Z00000001,SPAXX**,HELD IN MONEY MARKET,,,"$2,500.00"
+Z00000001,Pending Activity,,,,"-$100.00"
+
+"The data and information in this spreadsheet is provided to you solely for your use."

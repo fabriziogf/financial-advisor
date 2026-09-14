@@ -85,14 +85,16 @@ def check(snapshot: Snapshot) -> list[Observation]:
         )
     if flow.unpaired_transfers_out or flow.unpaired_transfers_in:
         assumptions.append(
-            "Transfers to or from accounts that aren't imported are excluded: "
-            f"{flow.unpaired_transfers_out.format()} out, {flow.unpaired_transfers_in.format()} in. "
+            "Transfers and contributions to or from accounts that aren't imported are excluded: "
+            f"{flow.unpaired_transfers_out.format()} out, "
+            f"{flow.unpaired_transfers_in.format()} in. "
             "If any of that was really spending or income, the rate is off by that much."
         )
     if flow.unpaired_payments_counted:
         assumptions.append(
-            f"{flow.unpaired_payments_counted.format()} of payments to cards that aren't imported "
-            "is counted as spending — it's the only record of those purchases."
+            f"{flow.unpaired_payments_counted.format()} of payments with no matching account "
+            "(card, bill, or loan payments) is counted as spending; for a card that isn't "
+            "imported, it's the only record of those purchases."
         )
     lagging = [c for c in flow.coverage if c.lag_days > LAGGING_DAYS]
     if lagging:

@@ -27,6 +27,7 @@ __all__ = [
     "Exposure",
     "Portfolio",
     "build_portfolio",
+    "default_tax_treatment",
     "effective_tax_treatment",
     "portfolio_missing",
     "portfolio_notes",
@@ -44,6 +45,11 @@ _TAX_TREATMENT_BY_TYPE = {
 }
 
 
+def default_tax_treatment(type_code: str) -> str:
+    """The treatment an account of this type has unless stated otherwise."""
+    return _TAX_TREATMENT_BY_TYPE.get(type_code, "taxable")
+
+
 def effective_tax_treatment(account: Account) -> tuple[str, bool]:
     """(treatment, inferred). A stated non-default treatment is always respected —
     a Roth 401(k) recorded as tax_free stays tax_free."""
@@ -56,7 +62,7 @@ def effective_tax_treatment(account: Account) -> tuple[str, bool]:
 @dataclass(frozen=True)
 class Exposure:
     account: Account
-    symbol: str | None            # None: an account valued by balance, holdings unknown
+    symbol: str | None  # None: an account valued by balance, holdings unknown
     value: Money
     security: SecurityInfo | None
 
@@ -69,11 +75,11 @@ class Exposure:
 class Portfolio:
     total: Money
     exposures: tuple[Exposure, ...]
-    unvalued: tuple[tuple[str, str], ...]              # (account, symbol)
-    without_holdings: tuple[tuple[str, Money], ...]    # (account, balance used)
-    without_data: tuple[str, ...]                      # neither balance nor holdings
-    mismatches: tuple[tuple[str, Money, Money], ...]   # (account, holdings total, balance)
-    stale: tuple[tuple[str, date], ...]                # (account, holdings date)
+    unvalued: tuple[tuple[str, str], ...]  # (account, symbol)
+    without_holdings: tuple[tuple[str, Money], ...]  # (account, balance used)
+    without_data: tuple[str, ...]  # neither balance nor holdings
+    mismatches: tuple[tuple[str, Money, Money], ...]  # (account, holdings total, balance)
+    stale: tuple[tuple[str, date], ...]  # (account, holdings date)
 
     def by_asset_class(self) -> dict[str | None, Money]:
         """Look-through values per asset class. Key None collects the unclassified."""
@@ -127,11 +133,20 @@ def build_portfolio(snapshot: Snapshot) -> Portfolio | None:
                     continue
                 holdings_total += position.market_value
                 exposures.append(
-                    Exposure(state.account, position.symbol, position.market_value, catalog.get(position.symbol))
+                    Exposure(
+                        state.account,
+                        position.symbol,
+                        position.market_value,
+                        catalog.get(position.symbol),
+                    )
                 )
             held_on = state.positions_as_of
             # Only comparable on the same day; otherwise the market moved in between.
-            if state.balance is not None and held_on == state.balance_as_of and holdings_total.cents:
+            if (
+                state.balance is not None
+                and held_on == state.balance_as_of
+                and holdings_total.cents
+            ):
                 gap = abs(abs(state.balance) - holdings_total)
                 if gap.ratio_to(holdings_total) > tolerance:
                     mismatches.append((state.name, holdings_total, abs(state.balance)))
@@ -173,7 +188,8 @@ def portfolio_missing(portfolio: Portfolio) -> list[str]:
         )
     if portfolio.unweighted_symbols:
         missing.append(
-            f"Asset-class weights for {', '.join(portfolio.unweighted_symbols)} in your securities catalog."
+            f"Asset-class weights for {', '.join(portfolio.unweighted_symbols)} in your "
+            "securities catalog."
         )
     if portfolio.unvalued:
         pairs = ", ".join(f"{symbol} in {name}" for name, symbol in portfolio.unvalued)

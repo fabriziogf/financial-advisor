@@ -6,7 +6,7 @@ from ...money import Money
 from ..model import Fact, Observation, Severity
 from ..portfolio import build_portfolio, effective_tax_treatment, portfolio_missing, portfolio_notes
 from ..snapshot import Snapshot
-from ._common import attention, not_applicable, ok
+from ._common import attention, insufficient, not_applicable, ok
 
 TITLE = "Asset location"
 KEY = "F3.5.location"
@@ -45,12 +45,29 @@ def check(snapshot: Snapshot) -> list[Observation]:
             elif treatment == "tax_deferred" and cls in efficient:
                 efficient_in_deferred += part
 
-    if not (has_taxable and has_sheltered):
+    # Applicability comes from the accounts that exist, not from the holdings that
+    # happen to be imported: a 401(k) with no holdings yet is still a 401(k).
+    treatments = {effective_tax_treatment(s.account)[0] for s in snapshot.investments()}
+    if "taxable" not in treatments or treatments == {"taxable"}:
         return [
             not_applicable(
                 KEY,
                 TITLE,
-                "Asset location only matters with both taxable and tax-advantaged investment accounts.",
+                "Asset location only matters with both taxable and tax-advantaged "
+                "investment accounts.",
+            )
+        ]
+    missing = portfolio_missing(portfolio)
+    one_side_unseen = not (has_taxable and has_sheltered)
+    deferred_side_unseen = inefficient_in_taxable.cents > 0 and efficient_in_deferred.cents == 0
+    if missing and (one_side_unseen or deferred_side_unseen):
+        return [
+            insufficient(
+                KEY,
+                TITLE,
+                "Holdings are missing for some investment accounts, so asset location "
+                "can't be assessed.",
+                missing,
             )
         ]
 
@@ -79,7 +96,6 @@ def check(snapshot: Snapshot) -> list[Observation]:
     if unclassified.cents:
         assumptions.append(f"{unclassified.format()} of unclassified holdings is left out.")
     inputs = ("Holdings by account", "Account tax treatment", "rules/asset_classes.yml")
-    missing = portfolio_missing(portfolio)
 
     if swappable >= snapshot.thresholds.money("location", "min_swappable"):
         return [

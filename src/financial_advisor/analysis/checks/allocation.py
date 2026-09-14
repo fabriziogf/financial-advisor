@@ -33,7 +33,9 @@ def check(snapshot: Snapshot) -> list[Observation]:
 
     by_class = portfolio.by_asset_class()
     unclassified = by_class.pop(None, Money(0))
-    classified: dict[str, Money] = {cls: value for cls, value in by_class.items() if cls is not None}
+    classified: dict[str, Money] = {
+        cls: value for cls, value in by_class.items() if cls is not None
+    }
     classified_total = portfolio.total - unclassified
     unclassified_share = unclassified.ratio_to(portfolio.total)
 
@@ -44,7 +46,10 @@ def check(snapshot: Snapshot) -> list[Observation]:
             facts.append(Fact(classes[cls].label, f"{fmt_pct(share)} ({value.format()})"))
     if unclassified.cents:
         facts.append(
-            Fact("Unclassified", f"{fmt_pct(unclassified_share)} of the portfolio ({unclassified.format()})")
+            Fact(
+                "Unclassified",
+                f"{fmt_pct(unclassified_share)} of the portfolio ({unclassified.format()})",
+            )
         )
 
     assumptions = [
@@ -59,7 +64,9 @@ def check(snapshot: Snapshot) -> list[Observation]:
         "Securities catalog (rules/securities.yml plus your local overlay)",
     )
 
-    too_unclassified = unclassified_share > thresholds.decimal("allocation", "unclassified_insufficient")
+    too_unclassified = unclassified_share > thresholds.decimal(
+        "allocation", "unclassified_insufficient"
+    )
     if classified_total.cents <= 0 or too_unclassified:
         return [
             insufficient(
@@ -79,12 +86,16 @@ def check(snapshot: Snapshot) -> list[Observation]:
             f"unclassified {unclassified.format()} is left out."
         )
     if unclassified_share > thresholds.decimal("allocation", "unclassified_low_confidence"):
-        assumptions.append("A sizeable share is unclassified, so treat drift figures as approximate.")
+        assumptions.append(
+            "A sizeable share is unclassified, so treat drift figures as approximate."
+        )
 
     profile = snapshot.profile
     target = profile.target_allocation if profile else None
     if not target:
-        missing.append("Set investments.target_allocation_percent in your profile to compare against a target.")
+        missing.append(
+            "Set investments.target_allocation_percent in your profile to compare against a target."
+        )
         return [
             insufficient(
                 KEY,

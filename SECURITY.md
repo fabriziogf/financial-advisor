@@ -40,8 +40,15 @@ belongs in a tracked file. Ever.
 | Credentials, API tokens | `.env`, OS keychain | ❌ never |
 | Account & transaction data | `~/.local/share/financial-advisor/` | ❌ not in repo at all |
 | Generated advice & reports | `~/.local/share/financial-advisor/` | ❌ not in repo at all |
-| Securities reference data | `rules/securities.yml` | ✅ yes — describes funds, never holdings |
+| Your profile (salary, benefits, targets) | `~/.local/share/financial-advisor/profile.yml` | ❌ not in repo at all |
+| Funds you actually hold | `~/.local/share/financial-advisor/securities.local.yml` | ❌ not in repo at all |
+| Generic securities reference data | `rules/securities.yml` | ✅ yes — common funds only, never holdings |
+| Thresholds and IRS limits | `rules/thresholds.yml`, `rules/limits/` | ✅ yes |
 | Test fixtures | `tests/fixtures/` — **synthetic only** | ✅ yes |
+
+Don't add the funds you own to `rules/securities.yml`, even without quantities: the
+*list* of symbols in a public file discloses your holdings. Describe them in the local
+overlay instead — same format, never committed.
 
 Test fixtures must be fabricated. Do not "anonymize" a real export by editing names;
 transaction patterns, amounts, and timing are themselves identifying.

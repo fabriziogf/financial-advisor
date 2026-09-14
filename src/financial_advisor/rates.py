@@ -48,7 +48,7 @@ class RatesError(Exception):
 class BenchmarkRate:
     series: str
     observed_on: date
-    rate: Decimal      # fraction: 0.0386 is 3.86%
+    rate: Decimal  # fraction: 0.0386 is 3.86%
     fetched_on: date
 
 
@@ -136,4 +136,6 @@ def load_benchmark(path: Path | None = None) -> BenchmarkRate | None:
             fetched_on=date.fromisoformat(data["fetched_on"]),
         )
     except (ValueError, KeyError, InvalidOperation) as exc:
-        raise RatesError(f"cached benchmark at {target} is unreadable; run `fa rates refresh`") from exc
+        raise RatesError(
+            f"cached benchmark at {target} is unreadable; run `fa rates refresh`"
+        ) from exc

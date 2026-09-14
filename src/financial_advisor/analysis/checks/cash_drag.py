@@ -16,7 +16,11 @@ def check(snapshot: Snapshot) -> list[Observation]:
     thresholds = snapshot.thresholds
     cash = snapshot.of_types(LIQUID_TYPES)
     if not cash:
-        return [not_applicable(KEY, TITLE, "No checking, savings, or money market accounts are recorded.")]
+        return [
+            not_applicable(
+                KEY, TITLE, "No checking, savings, or money market accounts are recorded."
+            )
+        ]
     if snapshot.benchmark is None:
         return [
             insufficient(
@@ -67,7 +71,9 @@ def check(snapshot: Snapshot) -> list[Observation]:
     checking_unexempted = False
 
     for state in rated:
-        assert state.balance is not None and state.terms is not None and state.terms.rate is not None
+        assert (
+            state.balance is not None and state.terms is not None and state.terms.rate is not None
+        )
         rate = state.terms.rate
         exempt = Money(0)
         if state.account.type_code == "checking":
@@ -109,7 +115,9 @@ def check(snapshot: Snapshot) -> list[Observation]:
         assumptions.append(note)
 
     facts = [
-        Fact("Benchmark", f"{fmt_rate(benchmark)} ({SERIES_LABEL}, {snapshot.benchmark.observed_on})"),
+        Fact(
+            "Benchmark", f"{fmt_rate(benchmark)} ({SERIES_LABEL}, {snapshot.benchmark.observed_on})"
+        ),
         Fact("Accounts compared", str(len(rated))),
     ]
     liquid_total = snapshot.liquid_total()
@@ -133,7 +141,8 @@ def check(snapshot: Snapshot) -> list[Observation]:
                 TITLE,
                 severity,
                 f"{flagged} account(s) earn well below the {fmt_rate(benchmark)} Treasury bill "
-                f"rate: about {foregone.format()} a year in interest not earned at current balances.",
+                f"rate: about {foregone.format()} a year in interest not earned at "
+                "current balances.",
                 facts=facts,
                 annual_impact=foregone,
                 detail=detail,

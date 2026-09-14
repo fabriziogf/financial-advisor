@@ -157,7 +157,11 @@ def load_asset_classes(directory: Path | None = None) -> dict[str, AssetClass]:
         where = f"asset_classes.yml {key}"
         if not isinstance(body, dict):
             raise RulesError(f"{where}: expected a mapping")
-        label, equity, efficiency = body.get("label"), body.get("equity"), body.get("tax_efficiency")
+        label, equity, efficiency = (
+            body.get("label"),
+            body.get("equity"),
+            body.get("tax_efficiency"),
+        )
         if not isinstance(label, str) or not label.strip():
             raise RulesError(f"{where}: label is required")
         if not isinstance(equity, bool):
@@ -263,7 +267,7 @@ def _parse_catalog(
             # YAML 1.1 reads bare ON, OFF, YES, NO as booleans — all real tickers.
             raise RulesError(
                 f"{filename}: a symbol was read as the boolean {raw_symbol}. "
-                "Quote tickers like ON, YES, or NO: \"ON\":"
+                'Quote tickers like ON, YES, or NO: "ON":'
             )
         symbol = normalize_symbol(str(raw_symbol))
         catalog[symbol] = _parse_security(

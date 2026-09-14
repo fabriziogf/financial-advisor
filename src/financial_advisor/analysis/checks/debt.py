@@ -70,11 +70,22 @@ def check(snapshot: Snapshot) -> list[Observation]:
         "compounding and on payments made.",
     ]
     if paid_in_full:
-        assumptions.append(f"Cards paid in full each month accrue no interest and are excluded: {names(paid_in_full)}.")
+        assumptions.append(
+            "Cards paid in full each month accrue no interest and are excluded: "
+            f"{names(paid_in_full)}."
+        )
 
     if not rated:
         if missing:
-            return [insufficient(KEY, TITLE, "No debt has enough terms recorded to analyze.", missing, assumptions=assumptions)]
+            return [
+                insufficient(
+                    KEY,
+                    TITLE,
+                    "No debt has enough terms recorded to analyze.",
+                    missing,
+                    assumptions=assumptions,
+                )
+            ]
         return [
             ok(
                 KEY,
@@ -97,11 +108,14 @@ def check(snapshot: Snapshot) -> list[Observation]:
     for position, state in enumerate(avalanche, start=1):
         kind = f" {state.terms.rate_kind}" if state.terms and state.terms.rate_kind else ""
         detail.append(
-            f"{position}. {state.name}: {_balance(state).format()} at {fmt_rate(_rate(state))}{kind}, "
+            f"{position}. {state.name}: {_balance(state).format()} at "
+            f"{fmt_rate(_rate(state))}{kind}, "
             f"about {_interest(state).format()}/yr"
         )
     if [s.name for s in snowball] != [s.name for s in avalanche]:
-        detail.append(f"Smallest balance first would instead run: {', '.join(s.name for s in snowball)}.")
+        detail.append(
+            f"Smallest balance first would instead run: {', '.join(s.name for s in snowball)}."
+        )
 
     promo_window = thresholds.integer("debt", "promo_warning_days")
     ending: list[AccountState] = []
@@ -113,7 +127,8 @@ def check(snapshot: Snapshot) -> list[Observation]:
         days = (ends - snapshot.as_of).days
         if days < 0:
             assumptions.append(
-                f"{state.name}'s promotional rate ended {ends}; confirm the current rate with `fa terms`."
+                f"{state.name}'s promotional rate ended {ends}; confirm the current rate "
+                "with `fa terms`."
             )
             continue
         if days > promo_window:
@@ -121,12 +136,20 @@ def check(snapshot: Snapshot) -> list[Observation]:
         ending.append(state)
         after = state.terms.post_promo_rate
         if after is None:
-            detail.append(f"{state.name}: the promotional rate ends {ends} ({days} days); the rate after isn't recorded.")
-            missing.append(f'The post-promotion rate for {state.name}: `fa terms --account "{state.name}" --post-promo-rate PERCENT`.')
+            detail.append(
+                f"{state.name}: the promotional rate ends {ends} ({days} days); the rate "
+                "after isn't recorded."
+            )
+            missing.append(
+                f"The post-promotion rate for {state.name}: "
+                f'`fa terms --account "{state.name}" --post-promo-rate PERCENT`.'
+            )
         else:
             detail.append(
-                f"{state.name}: the {fmt_rate(_rate(state))} promotional rate ends {ends} ({days} days), "
-                f"then {fmt_rate(after)}, about {(_balance(state) * after).format()}/yr at this balance."
+                f"{state.name}: the {fmt_rate(_rate(state))} promotional rate ends {ends} "
+                f"({days} days), "
+                f"then {fmt_rate(after)}, about {(_balance(state) * after).format()}/yr "
+                "at this balance."
             )
 
     variable = [s for s in rated if s.terms is not None and s.terms.rate_kind == "variable"]
@@ -150,7 +173,9 @@ def check(snapshot: Snapshot) -> list[Observation]:
             "with the risk-free Treasury bill rate rather than an assumed market return."
         )
     if any(s.account.type_code == "mortgage" for s in rated):
-        assumptions.append("Mortgage interest can be tax-deductible if you itemize; that isn't assessed.")
+        assumptions.append(
+            "Mortgage interest can be tax-deductible if you itemize; that isn't assessed."
+        )
     note = stale_note(rated, snapshot.as_of)
     if note:
         assumptions.append(note)
@@ -175,7 +200,9 @@ def check(snapshot: Snapshot) -> list[Observation]:
         elif ending:
             summary = f"A promotional rate ends within {promo_window} days on {names(ending)}."
         else:
-            summary = f"{names(variable)} carry variable rates, so their cost moves with interest rates."
+            summary = (
+                f"{names(variable)} carry variable rates, so their cost moves with interest rates."
+            )
         return [
             attention(
                 KEY,

@@ -35,9 +35,7 @@ def _construct_decimal(loader: yaml.SafeLoader, node: yaml.ScalarNode) -> Decima
             None, None, f"could not read {text!r} as an exact number", node.start_mark
         ) from exc
     if not value.is_finite():
-        raise ConstructorError(
-            None, None, f"refusing non-finite number {text!r}", node.start_mark
-        )
+        raise ConstructorError(None, None, f"refusing non-finite number {text!r}", node.start_mark)
     return value
 
 

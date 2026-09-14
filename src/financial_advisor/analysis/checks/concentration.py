@@ -9,9 +9,10 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+from ...money import Money
 from ...rules import LOCAL_SECURITIES_FILENAME
 from ..model import Fact, Observation, Severity, fmt_pct
-from ..portfolio import build_portfolio, portfolio_notes
+from ..portfolio import build_portfolio, portfolio_missing, portfolio_notes
 from ..snapshot import Snapshot
 from ._common import attention, insufficient, not_applicable, ok
 
@@ -30,6 +31,16 @@ def check(snapshot: Snapshot) -> list[Observation]:
                 TITLE,
                 "Investment accounts have no holdings or balances recorded.",
                 ["Import holdings with `fa holdings FILE --account NAME`."],
+            )
+        ]
+
+    if not portfolio.by_symbol():
+        return [
+            insufficient(
+                KEY,
+                TITLE,
+                "No holdings are imported, so concentration can't be assessed.",
+                portfolio_missing(portfolio),
             )
         ]
 
@@ -83,8 +94,10 @@ def check(snapshot: Snapshot) -> list[Observation]:
         for symbol, share in unassessed
     ]
     assumptions = [
-        f"Diversified funds are never flagged; any other single holding above {fmt_pct(single)} is.",
-        "Sector and industry concentration aren't assessed; the securities catalog has no sector data.",
+        "Diversified funds are never flagged; any other single holding above "
+        f"{fmt_pct(single)} is.",
+        "Sector and industry concentration aren't assessed; the securities catalog "
+        "has no sector data.",
         "Only holdings in recorded investment accounts count. Unvested equity, or shares held "
         "somewhere not recorded, aren't included.",
         *portfolio_notes(portfolio),
@@ -104,7 +117,8 @@ def check(snapshot: Snapshot) -> list[Observation]:
         summary = (
             findings[0][1]
             if len(findings) == 1
-            else f"{len(findings)} holdings are concentrated enough to note; the largest risk: {findings[0][1]}"
+            else f"{len(findings)} holdings are concentrated enough to note; the largest "
+            f"risk: {findings[0][1]}"
         )
         return [
             attention(
@@ -113,19 +127,29 @@ def check(snapshot: Snapshot) -> list[Observation]:
                 findings[0][0],
                 summary,
                 facts=facts,
-                detail=[text for _, text in findings],
+                detail=[text for _, text in findings] if len(findings) > 1 else [],
                 inputs=inputs,
                 assumptions=assumptions,
                 missing=missing,
             )
         ]
-    if unassessed:
+    unseen = sum((value for _, value in portfolio.without_holdings), Money(0))
+    unseen_share = unseen.ratio_to(portfolio.total)
+    too_unseen = unseen_share > thresholds.decimal("allocation", "unclassified_insufficient")
+    if unassessed or too_unseen:
+        summary = (
+            "Some large holdings aren't marked as diversified or not, so they can't be "
+            "assessed."
+            if unassessed
+            else f"{fmt_pct(unseen_share)} of the portfolio has no imported holdings, so "
+            "concentration can't be assessed reliably."
+        )
         return [
             insufficient(
                 KEY,
                 TITLE,
-                "Some large holdings aren't marked as diversified or not, so they can't be assessed.",
-                missing,
+                summary,
+                missing + portfolio_missing(portfolio),
                 facts=facts,
                 inputs=inputs,
                 assumptions=assumptions,

@@ -16,9 +16,11 @@ institution, by architecture. See [the PRD](docs/PRD.md) for the full design.
 
 ## Status
 
-**M0 (Foundation) complete.** Working: local database, CSV import with
-deduplication, and a net worth statement. The [PRD](docs/PRD.md) has all design
-decisions resolved; M1 (the observation engine) is next.
+**M1 (observation engine) implemented.** `fa check` runs ten deterministic checks —
+emergency fund, cash drag, tax-advantaged space and employer match, allocation,
+asset location, fees, concentration, debt, insurance, and savings rate — and reports
+what needs attention, what it can't assess yet, and exactly what to provide. M0 (local
+database, CSV import, net worth statement) is complete.
 
 ## Quick start
 
@@ -31,6 +33,12 @@ uv run fa account-add --name "Checking" --type checking --institution "My Bank"
 uv run fa import statement.csv --account "Checking"
 uv run fa balance --account "Checking" --amount 5000.00
 uv run fa networth
+
+uv run fa profile init       # salary, benefits, targets — stored outside the repo
+uv run fa terms --account "Checking" --rate 0.01      # APY or APR, as a percent
+uv run fa holdings positions.csv --account "Brokerage"
+uv run fa rates refresh      # one request to FRED; sends nothing about you
+uv run fa check              # --verbose shows the assumptions behind each figure
 ```
 
 `fa import` auto-detects the column layout of most US bank and brokerage exports.
@@ -50,6 +58,9 @@ rather than double-counted.
   looks plausible.
 - **The net worth statement flags what it doesn't know.** Stale balances and
   accounts with no data are surfaced, not quietly counted or dropped.
+- **Checks say when they can't tell.** A check missing an input reports
+  *insufficient data* and names what to add, rather than guessing. Every figure is
+  computed by tested code and shown with the inputs and assumptions behind it.
 
 ## Not financial advice
 

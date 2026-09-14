@@ -27,7 +27,10 @@ def _check_order(observation: Observation) -> tuple[int, ...]:
 
 def _wrap(text: str, first: str, rest: str | None = None) -> list[str]:
     return textwrap.wrap(
-        text, width=WIDTH, initial_indent=first, subsequent_indent=rest if rest is not None else first
+        text,
+        width=WIDTH,
+        initial_indent=first,
+        subsequent_indent=rest if rest is not None else first,
     ) or [first.rstrip()]
 
 
@@ -60,7 +63,8 @@ def _render(observation: Observation, *, verbose: bool, compact: bool) -> list[s
     if observation.professional_review and observation.status is not Status.NOT_APPLICABLE:
         lines.extend(
             _wrap(
-                "Tax, insurance, or legal matter: confirm with a licensed professional before acting.",
+                "Tax, insurance, or legal matter: confirm with a licensed professional "
+                "before acting.",
                 f"{indent}⚖ ",
                 f"{indent}  ",
             )
@@ -93,7 +97,11 @@ def format_observations(
         _wrap(
             "These are observations about your recorded data measured against the rules in "
             "rules/ — not advice, and not a substitute for a licensed professional. "
-            + ("" if verbose else "Run `fa check --verbose` to see the assumptions behind each figure."),
+            + (
+                ""
+                if verbose
+                else "Run `fa check --verbose` to see the assumptions behind each figure."
+            ),
             "",
         )
     )

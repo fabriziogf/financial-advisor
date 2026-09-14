@@ -180,3 +180,13 @@ class TestComparisonAndDisplay:
 
     def test_amount_property_is_decimal(self):
         assert Money("1234.56").amount == Decimal("1234.56")
+
+
+def test_sign_before_the_currency_symbol():
+    """'-$1,234.56' is how many US exports write a negative amount."""
+    from financial_advisor.money import Money
+
+    assert Money.parse("-$1,234.56") == Money("-1234.56")
+    assert Money.parse("+$5.00") == Money("5.00")
+    assert Money.parse("$-12.00") == Money("-12.00")
+    assert Money.parse("-12.00") == Money("-12.00")

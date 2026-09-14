@@ -48,12 +48,15 @@ def check(snapshot: Snapshot) -> list[Observation]:
         missing.append("Set insurance.life_coverage in your profile (0 if none).")
     else:
         need = profile.annual_salary * multiple
-        facts.append(Fact("Life coverage", f"{profile.life_coverage.format()} (heuristic: {need.format()})"))
+        facts.append(
+            Fact("Life coverage", f"{profile.life_coverage.format()} (heuristic: {need.format()})")
+        )
         if profile.life_coverage < need:
             findings.append(
                 (
                     Severity.MEDIUM,
-                    f"Life coverage of {profile.life_coverage.format()} is below {multiple}× salary "
+                    f"Life coverage of {profile.life_coverage.format()} is below "
+                    f"{multiple}× salary "
                     f"({need.format()}) with {profile.dependents} dependent(s).",
                 )
             )
@@ -62,7 +65,12 @@ def check(snapshot: Snapshot) -> list[Observation]:
     if profile.long_term_disability is None:
         missing.append("Set insurance.long_term_disability (true or false).")
     else:
-        facts.append(Fact("Long-term disability", "recorded" if profile.long_term_disability else "none recorded"))
+        facts.append(
+            Fact(
+                "Long-term disability",
+                "recorded" if profile.long_term_disability else "none recorded",
+            )
+        )
         if not profile.long_term_disability and profile.annual_salary is not None:
             findings.append(
                 (
@@ -84,7 +92,8 @@ def check(snapshot: Snapshot) -> list[Observation]:
                 findings.append(
                     (
                         Severity.LOW,
-                        f"Umbrella liability coverage of {profile.umbrella_coverage.format()} is below "
+                        "Umbrella liability coverage of "
+                        f"{profile.umbrella_coverage.format()} is below "
                         f"recorded net worth of {net_worth.format()}.",
                     )
                 )
@@ -93,10 +102,16 @@ def check(snapshot: Snapshot) -> list[Observation]:
         f"Life-insurance need uses a {multiple}× salary rule of thumb. It's crude by design: it "
         "ignores savings, a partner's income, debts, and education goals.",
         "Coverage through an employer counts only if it's included in the figures you recorded.",
-        "Policies aren't priced or compared, and definitions of disability differ between policies.",
+        "Policies aren't priced or compared, and definitions of disability differ "
+        "between policies.",
         f"The umbrella comparison applies once recorded net worth reaches {floor.format()}.",
     ]
-    inputs = ("insurance section of your profile", "household.dependents", "income.annual_salary", "Net worth")
+    inputs = (
+        "insurance section of your profile",
+        "household.dependents",
+        "income.annual_salary",
+        "Net worth",
+    )
 
     if findings:
         findings.sort(key=lambda f: -f[0])
@@ -112,7 +127,7 @@ def check(snapshot: Snapshot) -> list[Observation]:
                 findings[0][0],
                 summary,
                 facts=facts,
-                detail=[text for _, text in findings],
+                detail=[text for _, text in findings] if len(findings) > 1 else [],
                 inputs=inputs,
                 assumptions=assumptions,
                 missing=missing,

@@ -29,7 +29,9 @@ def check(snapshot: Snapshot) -> list[Observation]:
     missing: list[str] = []
     unbalanced = [s for s in liquid if s.balance is None]
     if unbalanced:
-        missing.append(f"Balances for {names(unbalanced)}: `fa balance --account NAME --amount AMOUNT`.")
+        missing.append(
+            f"Balances for {names(unbalanced)}: `fa balance --account NAME --amount AMOUNT`."
+        )
     basis = snapshot.expense_basis()
     if basis is None:
         missing.append(
@@ -68,7 +70,9 @@ def check(snapshot: Snapshot) -> list[Observation]:
         assumptions.append(note)
     inputs = (f"Balances: {names(liquid)}", f"Expenses: {basis.label}")
 
-    covered = f"Liquid cash of {liquid_total.format()} covers {fmt_months(months)} months of expenses"
+    covered = (
+        f"Liquid cash of {liquid_total.format()} covers {fmt_months(months)} months of expenses"
+    )
     if months >= target:
         facts.append(Fact("Above target", (liquid_total - target_amount).format()))
         return [

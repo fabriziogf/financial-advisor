@@ -31,13 +31,25 @@ __all__ = ["HoldingsResult", "parse_holdings", "import_holdings"]
 
 _SYMBOL = {"symbol", "ticker", "ticker symbol", "security symbol", "sym", "symbol cusip"}
 _VALUE = {
-    "current value", "market value", "value", "total value", "mkt value", "marketvalue",
-    "ending value", "position value", "value usd",
+    "current value",
+    "market value",
+    "value",
+    "total value",
+    "mkt value",
+    "marketvalue",
+    "ending value",
+    "position value",
+    "value usd",
 }
 _QUANTITY = {"quantity", "shares", "qty", "units", "share quantity", "shares held"}
 _NAME = {
-    "description", "security description", "name", "security name", "investment name",
-    "fund name", "investment",
+    "description",
+    "security description",
+    "name",
+    "security name",
+    "investment name",
+    "fund name",
+    "investment",
 }
 _ACCOUNT = {"account", "account name", "account number", "account id"}
 
@@ -82,7 +94,11 @@ def _detect(headers: list[str]) -> _Columns:
             if norm in vocabulary and role not in found:
                 found[role] = raw
                 break
-    missing = [label for role, label in (("symbol", "a symbol column"), ("value", "a market value column")) if role not in found]
+    missing = [
+        label
+        for role, label in (("symbol", "a symbol column"), ("value", "a market value column"))
+        if role not in found
+    ]
     if missing:
         raise ImportError_(f"Could not identify {' or '.join(missing)}.\n  Headers seen: {headers}")
     return _Columns(**found)
@@ -106,6 +122,11 @@ def _cell(record: dict, column: str | None) -> str:
     return value.strip() if isinstance(value, str) else ""
 
 
+def _is_holding_row(record: dict, columns: _Columns) -> bool:
+    symbol = normalize_symbol(_cell(record, columns.symbol))
+    return bool(_SYMBOL_SHAPE.match(symbol)) and bool(_cell(record, columns.value))
+
+
 def parse_holdings(text: str, *, only: str | None = None) -> tuple[list[Holding], list[str]]:
     """Holdings and a list of skipped rows, each described with its line and amount."""
     lines = text.splitlines()
@@ -125,9 +146,18 @@ def parse_holdings(text: str, *, only: str | None = None) -> tuple[list[Holding]
         if only:
             numbered = [(n, r) for n, r in numbered if only in _cell(r, columns.account)]
             if not numbered:
-                raise ImportError_(f"No rows match --only {only!r} in the {columns.account!r} column.")
+                raise ImportError_(
+                    f"No rows match --only {only!r} in the {columns.account!r} column."
+                )
         else:
-            distinct = {_cell(r, columns.account) for _, r in numbered if _cell(r, columns.account)}
+            # Only rows shaped like holdings count. Brokerage exports put disclaimer
+            # footers in the first column — often the account column — and counting
+            # that text as an account made every real export fail to import.
+            distinct = {
+                _cell(r, columns.account)
+                for _, r in numbered
+                if _cell(r, columns.account) and _is_holding_row(r, columns)
+            }
             if len(distinct) > 1:
                 # Count only: echoing the values would print account numbers to the terminal.
                 raise ImportError_(
@@ -157,12 +187,19 @@ def parse_holdings(text: str, *, only: str | None = None) -> tuple[list[Holding]
             value = Money.parse(raw_value)
         except MoneyParseError as exc:
             if not looks_like_symbol:
-                continue  # footer or disclaimer text spilling into the value column
+                label = raw_symbol[:40] or "(blank symbol)"
+                skipped.append(
+                    f"line {line_no}: {label!r} has an unreadable value {raw_value[:40]!r} "
+                    "and was left out"
+                )
+                continue
             raise ImportError_(f"line {line_no}: {symbol}: {exc}") from exc
 
         if not looks_like_symbol:
             label = raw_symbol[:40] or "(blank symbol)"
-            skipped.append(f"line {line_no}: {label!r} ({value.format()}) isn't a holding and was left out")
+            skipped.append(
+                f"line {line_no}: {label!r} ({value.format()}) isn't a holding and was left out"
+            )
             continue
 
         quantity = None
@@ -171,7 +208,9 @@ def parse_holdings(text: str, *, only: str | None = None) -> tuple[list[Holding]
             try:
                 quantity = Decimal(raw_quantity.replace(",", ""))
             except InvalidOperation as exc:
-                raise ImportError_(f"line {line_no}: {symbol}: unreadable quantity {raw_quantity!r}") from exc
+                raise ImportError_(
+                    f"line {line_no}: {symbol}: unreadable quantity {raw_quantity!r}"
+                ) from exc
 
         holdings.append(Holding(symbol, _cell(record, columns.name) or None, quantity, value))
 
@@ -217,7 +256,9 @@ def import_holdings(
     result.positions_written = replace_positions(
         conn, account_id, as_of, holdings, source="import", import_run_id=run_id
     )
-    conn.execute("UPDATE import_run SET inserted_count = ? WHERE id = ?", (result.positions_written, run_id))
+    conn.execute(
+        "UPDATE import_run SET inserted_count = ? WHERE id = ?", (result.positions_written, run_id)
+    )
 
     result.total = sum((h.market_value for h in holdings if h.market_value is not None), Money(0))
     if update_balance:

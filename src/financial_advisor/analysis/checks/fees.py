@@ -48,7 +48,10 @@ def check(snapshot: Snapshot) -> list[Observation]:
     facts = [
         Fact("Annual fund costs", f"{cost.format()}/yr"),
         Fact("Weighted expense ratio", fmt_rate(weighted)),
-        Fact("Holdings with known costs", f"{fmt_pct(known_value.ratio_to(portfolio.total))} of the portfolio"),
+        Fact(
+            "Holdings with known costs",
+            f"{fmt_pct(known_value.ratio_to(portfolio.total))} of the portfolio",
+        ),
     ]
 
     detail: list[str] = []
@@ -104,7 +107,10 @@ def check(snapshot: Snapshot) -> list[Observation]:
         "recorded in your catalog — confirm them against current fund documents.",
         *portfolio_notes(portfolio),
     ]
-    inputs = ("Holdings and market values", "Expense ratios and categories in your securities catalog")
+    inputs = (
+        "Holdings and market values",
+        "Expense ratios and categories in your securities catalog",
+    )
 
     if expensive or savings.cents:
         medium = thresholds.money("fees", "medium_annual_savings")

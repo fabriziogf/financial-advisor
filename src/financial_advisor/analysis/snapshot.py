@@ -40,7 +40,7 @@ LIQUID_TYPES = frozenset({"checking", "savings", "money_market"})
 @dataclass(frozen=True)
 class AccountState:
     account: Account
-    balance: Money | None             # signed, as stored
+    balance: Money | None  # signed, as stored
     balance_as_of: date | None
     terms: Terms | None = None
     positions: tuple[PositionRow, ...] = ()
@@ -54,13 +54,15 @@ class AccountState:
         return max(p.as_of for p in self.positions) if self.positions else None
 
     def is_stale(self, as_of: date) -> bool:
-        return self.balance_as_of is not None and (as_of - self.balance_as_of).days > STALE_AFTER_DAYS
+        return (
+            self.balance_as_of is not None and (as_of - self.balance_as_of).days > STALE_AFTER_DAYS
+        )
 
 
 @dataclass(frozen=True)
 class ExpenseBasis:
     amount: Money
-    declared: bool   # True when stated in the profile rather than derived
+    declared: bool  # True when stated in the profile rather than derived
     label: str
 
 

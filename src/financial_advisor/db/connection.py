@@ -65,7 +65,9 @@ def _migrations() -> list[tuple[int, Path]]:
         found.append((int(match.group(1)), path))
     versions = [v for v, _ in found]
     if versions != list(range(2, 2 + len(found))):
-        raise SchemaVersionError(f"migrations must be numbered consecutively from 002; found {versions}")
+        raise SchemaVersionError(
+            f"migrations must be numbered consecutively from 002; found {versions}"
+        )
     if (versions[-1] if versions else 1) != SCHEMA_VERSION:
         raise SchemaVersionError("SCHEMA_VERSION does not match the newest migration file")
     return found
@@ -75,7 +77,9 @@ def _version(conn: sqlite3.Connection) -> int:
     try:
         row = conn.execute("SELECT MAX(version) FROM schema_version").fetchone()
     except sqlite3.OperationalError as exc:
-        raise SchemaVersionError("not a financial-advisor database (no schema_version table)") from exc
+        raise SchemaVersionError(
+            "not a financial-advisor database (no schema_version table)"
+        ) from exc
     return int(row[0] or 0)
 
 

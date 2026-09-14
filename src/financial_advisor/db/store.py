@@ -175,7 +175,14 @@ class Terms:
     updated_on: date
 
 
-_TERMS_FIELDS = ("rate", "rate_kind", "minimum_payment", "promo_ends_on", "post_promo_rate", "revolving")
+_TERMS_FIELDS = (
+    "rate",
+    "rate_kind",
+    "minimum_payment",
+    "promo_ends_on",
+    "post_promo_rate",
+    "revolving",
+)
 
 
 def get_terms(conn: sqlite3.Connection) -> dict[int, Terms]:
@@ -190,8 +197,12 @@ def get_terms(conn: sqlite3.Connection) -> dict[int, Terms]:
                 if row["minimum_payment_cents"] is not None
                 else None
             ),
-            promo_ends_on=date.fromisoformat(row["promo_ends_on"]) if row["promo_ends_on"] else None,
-            post_promo_rate=Decimal(row["post_promo_rate"]) if row["post_promo_rate"] is not None else None,
+            promo_ends_on=(
+                date.fromisoformat(row["promo_ends_on"]) if row["promo_ends_on"] else None
+            ),
+            post_promo_rate=(
+                Decimal(row["post_promo_rate"]) if row["post_promo_rate"] is not None else None
+            ),
             revolving=None if row["revolving"] is None else bool(row["revolving"]),
             updated_on=date.fromisoformat(row["updated_on"]),
         )
@@ -209,7 +220,9 @@ def _check_rate(value: Decimal | None, name: str) -> None:
         )
 
 
-def set_terms(conn: sqlite3.Connection, account_id: int, *, updated_on: date, **changes: object) -> Terms:
+def set_terms(
+    conn: sqlite3.Connection, account_id: int, *, updated_on: date, **changes: object
+) -> Terms:
     """Update the given fields, keeping the rest. Passing None clears a field."""
     unknown = set(changes) - set(_TERMS_FIELDS)
     if unknown:
@@ -324,7 +337,8 @@ def replace_positions(
         combined[symbol] = Holding(symbol, prior.name or holding.name, quantity, value)
 
     conn.execute(
-        "DELETE FROM position WHERE account_id = ? AND as_of_date = ?", (account_id, as_of.isoformat())
+        "DELETE FROM position WHERE account_id = ? AND as_of_date = ?",
+        (account_id, as_of.isoformat()),
     )
     for holding in combined.values():
         security_id = upsert_security(conn, holding.symbol, holding.name)

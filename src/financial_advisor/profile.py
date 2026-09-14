@@ -66,13 +66,13 @@ def example_profile_path() -> Path:
 # --- Model ----------------------------------------------------------------
 @dataclass(frozen=True)
 class MatchTier:
-    rate: Decimal    # fraction: 1.0 means the employer adds 100% of the matched amount
-    up_to: Decimal   # cumulative bound, as a fraction of salary
+    rate: Decimal  # fraction: 1.0 means the employer adds 100% of the matched amount
+    up_to: Decimal  # cumulative bound, as a fraction of salary
 
 
 @dataclass(frozen=True)
 class EmployerPlan:
-    contribution_rate: Decimal | None   # fraction of salary
+    contribution_rate: Decimal | None  # fraction of salary
     match: tuple[MatchTier, ...]
     employer_stock_symbol: str | None
 
@@ -101,7 +101,7 @@ class EmployerPlan:
 
 @dataclass(frozen=True)
 class HSAEnrollment:
-    coverage: str                        # "self" | "family"
+    coverage: str  # "self" | "family"
     contributed_this_year: Money | None
 
 
@@ -119,7 +119,7 @@ class Profile:
     hsa: HSAEnrollment | None = None
     emergency_target_months: Decimal | None = None
     monthly_essential_expenses: Money | None = None
-    target_allocation: dict[str, Decimal] | None = None   # fractions summing to 1
+    target_allocation: dict[str, Decimal] | None = None  # fractions summing to 1
     drift_tolerance: Decimal | None = None
     insurance_stated: bool = False
     life_coverage: Money | None = None
@@ -252,7 +252,9 @@ def _section(data: dict[str, Any], name: str, reader: _Reader) -> Any:
         return _ABSENT
     unknown = set(body) - _SECTIONS[name]
     for key in sorted(unknown):
-        reader.fail(f"{name}.{key}", f"unknown field. Expected one of: {', '.join(sorted(_SECTIONS[name]))}")
+        reader.fail(
+            f"{name}.{key}", f"unknown field. Expected one of: {', '.join(sorted(_SECTIONS[name]))}"
+        )
     return body
 
 
@@ -300,14 +302,18 @@ def parse_profile(data: Any, *, asset_classes: set[str], today: date) -> Profile
     for key in sorted(set(data) - _TOP_LEVEL):
         reader.fail(str(key), f"unknown section. Expected one of: {', '.join(sorted(_TOP_LEVEL))}")
 
-    fields: dict[str, Any] = {"reviewed_on": reader.date_value(data.get("reviewed_on"), "reviewed_on")}
+    fields: dict[str, Any] = {
+        "reviewed_on": reader.date_value(data.get("reviewed_on"), "reviewed_on")
+    }
 
     household = _section(data, "household", reader)
     if isinstance(household, dict):
         fields["birth_year"] = reader.integer(
             household.get("birth_year"), "household.birth_year", 1900, today.year
         )
-        fields["dependents"] = reader.integer(household.get("dependents"), "household.dependents", 0, 30)
+        fields["dependents"] = reader.integer(
+            household.get("dependents"), "household.dependents", 0, 30
+        )
 
     income = _section(data, "income", reader)
     if isinstance(income, dict):
@@ -334,7 +340,9 @@ def parse_profile(data: Any, *, asset_classes: set[str], today: date) -> Profile
 
     ira = _section(data, "ira", reader)
     if isinstance(ira, dict):
-        fields["ira_contributed"] = reader.money(ira.get("contributed_this_year"), "ira.contributed_this_year")
+        fields["ira_contributed"] = reader.money(
+            ira.get("contributed_this_year"), "ira.contributed_this_year"
+        )
 
     hsa = _section(data, "hsa", reader)
     if hsa is not _ABSENT:
@@ -342,7 +350,9 @@ def parse_profile(data: Any, *, asset_classes: set[str], today: date) -> Profile
         if isinstance(hsa, dict):
             coverage = reader.choice(hsa.get("coverage"), "hsa.coverage", ("self", "family"))
             if coverage is None and hsa.get("coverage") is None:
-                reader.fail("hsa.coverage", "required when the hsa section is present (self or family)")
+                reader.fail(
+                    "hsa.coverage", "required when the hsa section is present (self or family)"
+                )
             if coverage:
                 fields["hsa"] = HSAEnrollment(
                     coverage=coverage,
@@ -354,7 +364,10 @@ def parse_profile(data: Any, *, asset_classes: set[str], today: date) -> Profile
     emergency = _section(data, "emergency_fund", reader)
     if isinstance(emergency, dict):
         fields["emergency_target_months"] = reader.bounded(
-            emergency.get("target_months"), "emergency_fund.target_months", Decimal("0.5"), Decimal(36)
+            emergency.get("target_months"),
+            "emergency_fund.target_months",
+            Decimal("0.5"),
+            Decimal(36),
         )
         fields["monthly_essential_expenses"] = reader.money(
             emergency.get("monthly_essential_expenses"), "emergency_fund.monthly_essential_expenses"
@@ -376,7 +389,10 @@ def parse_profile(data: Any, *, asset_classes: set[str], today: date) -> Profile
                 target: dict[str, Decimal] = {}
                 for cls, raw in raw_target.items():
                     if cls not in asset_classes:
-                        reader.fail(f"{where}.{cls}", f"unknown asset class. Known: {', '.join(sorted(asset_classes))}")
+                        reader.fail(
+                            f"{where}.{cls}",
+                            f"unknown asset class. Known: {', '.join(sorted(asset_classes))}",
+                        )
                         continue
                     share = reader.percent(raw, f"{where}.{cls}")
                     if share is not None:
@@ -390,7 +406,9 @@ def parse_profile(data: Any, *, asset_classes: set[str], today: date) -> Profile
     insurance = _section(data, "insurance", reader)
     if isinstance(insurance, dict):
         fields["insurance_stated"] = True
-        fields["life_coverage"] = reader.money(insurance.get("life_coverage"), "insurance.life_coverage")
+        fields["life_coverage"] = reader.money(
+            insurance.get("life_coverage"), "insurance.life_coverage"
+        )
         fields["long_term_disability"] = reader.boolean(
             insurance.get("long_term_disability"), "insurance.long_term_disability"
         )
