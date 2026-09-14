@@ -22,6 +22,9 @@ asset location, fees, concentration, debt, insurance, and savings rate — and r
 what needs attention, what it can't assess yet, and exactly what to provide. M0 (local
 database, CSV import, net worth statement) is complete.
 
+How it was built, and what went wrong along the way:
+[M0 and M1 build log](docs/blog/m0-m1-foundation-and-observation-engine.md).
+
 ## Quick start
 
 ```bash

@@ -2,13 +2,15 @@
 
 | | |
 |---|---|
-| **Status** | Draft v0.3 — all open decisions resolved; ready for M0 |
+| **Status** | v0.4 — M0 and M1 built; exit criteria await real data; M2 next |
 | **Author** | fabriziogf |
-| **Last updated** | 2026-08-13 |
+| **Last updated** | 2026-09-13 |
+| **Build log** | [M0 and M1: how they were built](blog/m0-m1-foundation-and-observation-engine.md) |
 | **Repo** | Public. See [SECURITY.md](../SECURITY.md). |
 
-> **How to read this.** §12 records the settled decisions; nothing is currently
-> blocking implementation. Options that were considered and rejected are preserved in
+> **How to read this.** §12 records the settled decisions, including those made while
+> building M0 and M1 (D9–D15). §15 tracks what's implemented, what isn't, and known
+> limitations. Options that were considered and rejected are preserved in
 > [Appendix A](#appendix-a--alternatives-considered), each with the reasoning and a
 > trigger for revisiting it, so a future reversal starts from the argument rather than
 > from scratch.
@@ -91,7 +93,7 @@ tool should be able to say "here's the assumption I'm least confident in."
 | **Cash flow** | Recurring or one-off income/expense, detected from transactions or declared. |
 | **Goal** | Named objective: target amount, target date, priority, funding source, flexibility (hard date vs. aspirational). |
 | **Risk profile** | Stated tolerance + computed capacity + observed behavior. |
-| **Observation** | A machine-derived fact ("cash reserve = 2.1 months of expenses"). Deterministic. |
+| **Observation** | A machine-derived fact ("cash reserve = 2.1 months of expenses"). Deterministic. Carries a status (attention, ok, insufficient data, not applicable, error), the inputs and assumptions behind it, what's missing, and an annual dollar impact *only* when one follows from the inputs without speculation (D12). |
 | **Recommendation** | A suggested action derived from observations, with rationale, magnitude of impact, and confidence. |
 | **Decision** | My recorded response to a recommendation — taken, rejected, deferred — with reasoning. Feeds future advice. |
 
@@ -137,10 +139,13 @@ the established professional standard of care. Steps 1–5 and 7 are in scope; s
 ### Step 3 — Analyze current course *(MVP)*
 
 Deterministic observation engine. Each check is a small, testable, independently
-readable rule:
+readable rule. **All ten are built (M1);** refinements made during implementation are
+noted in italics.
 
 - **F3.1** Emergency fund depth vs. target months.
 - **F3.2** Cash drag — idle cash beyond reserve earning below money-market rates.
+  *Measured against the 3-month Treasury bill rate (FRED DTB3); checking accounts keep
+  one month of expenses out of the calculation for bills.*
 - **F3.3** Tax-advantaged space utilization — 401k/IRA/HSA contributions vs. annual
   limits, employer match capture. *Unclaimed match is the highest-certainty return
   available and should always surface first.*
@@ -150,8 +155,12 @@ readable rule:
   cheaper equivalents.
 - **F3.7** Concentration risk — single position, single sector, or employer stock
   exposure (the correlated-with-your-income case deserves its own flag).
+  *Sector concentration isn't assessed yet: the securities catalog has no sector data.*
 - **F3.8** Debt analysis — avalanche vs. snowball ordering, and refinance/payoff
   vs. invest comparisons on a risk-adjusted basis.
+  *Built as a comparison with the risk-free Treasury bill rate rather than an assumed
+  market return, which would bake a forecast into the finding. A credit card is never
+  assumed to carry a balance: unless stated, no interest is estimated for it.*
 - **F3.9** Insurance gap heuristics — life/disability/umbrella coverage vs. rough
   need. Flags for human review; does not price policies.
 - **F3.10** Savings rate & runway.
@@ -232,15 +241,21 @@ use. Boring on purpose. Use `Decimal` for money everywhere; a float rounding bug
 net-worth statement is a silent, corrosive failure. Alternatives in
 [Appendix A.3](#a3--stack-d3).
 
+**As built (M0–M1):** Python 3.11+, SQLite, and a Click CLI (`fa`). SQLCipher is
+deferred (P4) and the web UI hasn't started. Money is an integer count of cents,
+exposed as `Decimal` (D9). The engine's only I/O is assembling a *snapshot* —
+database, profile, rules, cached benchmark rate — and every check is a pure function
+of it, so checks are tested against hand-built snapshots with no database or clock.
+
 ## 9. Data sources
 
 | Source | Role | Notes |
 |---|---|---|
 | **SimpleFIN Bridge** | Primary sync | ~$15/yr, read-only *by protocol*, MX-backed (16k+ institutions), 24 refreshes/day. Best fit for §4. **Recommended.** |
 | **Plaid** | Alternative | Widest coverage and best DX, but built for fintechs; production access, per-call pricing, and a permission model that *can* include payment initiation. |
-| **CSV / OFX / QFX import** | Fallback + backfill | Every institution supports it. Needed regardless — SimpleFIN won't cover everything, especially 401k providers and foreign accounts. |
+| **CSV / OFX / QFX import** | Fallback + backfill | Every institution supports it. Needed regardless — SimpleFIN won't cover everything, especially 401k providers and foreign accounts. *Built so far: CSV transaction and holdings exports, columns auto-detected (D14). OFX/QFX not yet.* |
 | **Manual entry** | Real assets, terms | Property, private holdings, loan terms, benefits. |
-| **Local securities reference file** | Fund metadata | Hand-maintained `rules/securities.yml`. **Tracked in git — it describes funds, not holdings.** |
+| **Securities reference files** | Fund metadata | A few common funds in tracked `rules/securities.yml`; **the funds you actually hold are described in a local overlay outside the repo** (D11). |
 | **FRED** | Benchmark rates | Free, official, no API key friction, no privacy exposure. Feeds F3.2. |
 | **Historical return series** | Projections only | Deferred to M5. Not needed before Monte Carlo. |
 
@@ -279,19 +294,29 @@ several underlying funds; without decomposition, allocation analysis reports one
 unclassified position and F3.4 silently produces nothing useful. `securities.yml`
 therefore stores fractional asset-class weights, not a single label.
 
-> **This file is tracked in git.** It is reference data about publicly-traded
-> instruments — it says what VTI *is*, never that I hold any. Quantities, values, and
-> account associations live in `data/`. Keep that boundary strict: the moment a share
-> count appears in this file, it stops being reference data.
+> **Corrected in M1 (D11).** The original rule was that `securities.yml` is safe to
+> track because it says what a fund *is*, never how much of it is held. That's
+> necessary but not sufficient: the *set* of symbols in a public file discloses your
+> holdings without a single share count — the same reasoning that had already ruled
+> out per-institution import profiles. So the tracked file keeps a few common broad
+> funds as reference, and the funds you own are described in `securities.local.yml`
+> in the data directory, whose entries override the tracked ones. Quantities and
+> values live in the database, also outside the repo.
 
 ## 10. Privacy & security requirements
 
 Given the public repo, these are requirements, not aspirations. Full detail in
 [SECURITY.md](../SECURITY.md).
 
-- **P1** All personal data in gitignored local paths. Deny-by-default `.gitignore`.
+- **P1** Personal data never lives in the working tree (P4). The deny-by-default
+  `.gitignore` is defence in depth, not the primary barrier — and it cuts both ways:
+  during M0 an unanchored `reports/` pattern silently excluded a source module from a
+  commit that looked complete. CI now asserts every source file is tracked.
 - **P2** Pre-commit secret scanning (`gitleaks`) + CI scanning + GitHub push
   protection. Local hooks fail open when bypassed; CI is the backstop.
+  The hook is *adversarially tested* (`scripts/verify-hooks.sh`, locally and in CI):
+  known-bad content must be blocked and known-good content allowed. Writing that test
+  exposed silent failures a one-directional test would have missed.
 - **P3** Credentials in the OS keychain past prototype stage. Never in `.env` long-term.
 - **P4** **Data lives outside the repository**, at `~/.local/share/financial-advisor/`,
   mode `0700` (DB `0600`). This is structural rather than policy: a file that is not
@@ -331,21 +356,39 @@ Given the public repo, these are requirements, not aspirations. Full detail in
   doesn't need absolute values.
 - **P9** Screenshots in the README/docs must use synthetic data. This is the most
   common way personal-finance projects leak.
+- **P10** **Metadata is data.** Several M0–M1 decisions exist only because a harmless-
+  looking artifact would disclose something: per-institution import profiles (where
+  you bank), a tracked list of fund symbols (what you hold), account numbers echoed in
+  error messages (the multi-account holdings error reports a count, never the values).
+  Review new tracked files for what their *existence* reveals.
+- **P11** Tests never read or write the real data directory. An autouse fixture
+  redirects it for every test, because loading rules reads the local securities
+  overlay from there.
 
 ## 11. Correctness, risk, and disclaimers
 
 Bad financial advice is expensive and errors here are quiet. Requirements:
 
 - **R1** Every observation rule is unit-tested against hand-computed fixtures.
-- **R2** `Decimal` for all monetary arithmetic. No floats. Enforced by lint rule.
+- **R2** `Decimal` for all monetary arithmetic. No floats. *As built, enforced
+  structurally rather than by lint:* `Money` refuses construction from, or
+  multiplication by, a float; and the YAML loader builds `Decimal` directly from the
+  source text, so hand-written profile and rules files never produce a float.
 - **R3** Tax rules, contribution limits, and thresholds live in dated, versioned data
   files — never hardcoded in logic. They change annually and stale limits produce
-  confidently wrong advice.
+  confidently wrong advice. *As built:* `rules/limits/<year>.yml` (2026 verified
+  against IRS Notice 2025-67), `rules/thresholds.yml`, `rules/asset_classes.yml`. A
+  missing year is refused, never borrowed; a missing threshold is an error, never a
+  default.
 - **R4** Recommendations touching tax, estate, or insurance carry an explicit
   "verify with a professional" flag. The tool's job there is to prepare the question.
 - **R5** The tool must be able to say *"I don't have enough information"* and *"this
   depends on something I can't see."* Confident advice on incomplete data is the
-  primary failure mode.
+  primary failure mode. *As built:* every check can return **insufficient data** with
+  the exact input to provide. The first end-to-end run caught two checks breaking this
+  rule — concentration said "fine" with no holdings imported, and asset location said
+  "not applicable" when a 401(k)'s holdings were merely missing. Both are fixed and
+  covered by tests.
 - **R6** Personal-use posture. This is software analyzing my own data for my own
   decisions — not a service, no clients, no compensation for advice. Publishing the
   *code* is fine; if that ever changes and someone else's money is involved,
@@ -367,6 +410,13 @@ Settled. Rejected options and their reasoning are preserved in
 | D6 | Investment philosophy encoded | **Passive, allocation-first, low-cost.** Advice without an explicit stance is incoherent |
 | D7 | Market data | **No provider.** Local `securities.yml` + FRED for rates; historical series deferred to M5 (§9.1) |
 | D8 | Non-US accounts / multi-currency | **Out of scope. USD only.** Money is a single scalar amount; no currency column, no FX rates, no conversion layer |
+| D9 | Money representation *(M0)* | **Integer cents** internally and in SQLite; `Decimal` at the API. `SUM()` over TEXT coerces to float, so integers keep SQL aggregation exact. Refines A.5 |
+| D10 | Where the profile (F1.7) lives *(M1)* | **Hand-edited YAML in the data directory**, strictly validated: unknown keys are errors, every problem is reported at once, and a missing section ("not stated") is distinct from `null` ("none") |
+| D11 | Securities catalog *(M1)* | **Tracked generic catalog plus a local overlay** for the funds you hold (§9.1 correction) |
+| D12 | What the engine produces *(M1)* | **Observations, not recommendations.** Ranking and "what to do" are M2. Annual dollar impact is set only when it follows from the inputs without speculation — it will seed M2's ranking, where an invented number would silently corrupt the order |
+| D13 | Schema changes *(M1)* | **Numbered SQL migrations, applied only by `fa init`, after a backup.** `connect()` refuses a database that's behind the code rather than upgrading it as a side effect |
+| D14 | Import column mapping *(M0)* | **Auto-detected from headers**, not per-institution profiles (P10). A file that defeats detection gets a local, untracked override |
+| D15 | Spending vs. transfers *(M1)* | **Pair equal-and-opposite movements between your own accounts; exclude unpaired transfer and investment-contribution wording but report the totals; count unmatched card and bill payments as spending; never treat peer-to-peer payments as transfers.** Keyword-based, and disclosed as such |
 
 ### 12.1 Enforcing the USD-only assumption
 
@@ -393,11 +443,15 @@ So the assumption is enforced rather than assumed:
 
 **M0 — Foundation.** Repo, security tooling, schema, CSV import, net worth statement.
 *Exit: real data loaded locally, nothing leaked.*
-> ✅ **Unblocked.** D8 resolved USD-only, which fixes the money type — schema work can
-> begin.
+> ✅ **Built** 2026-09-03. Nothing has leaked; CI and the adversarially tested hook are
+> green. ⏳ The "real data loaded" half of the exit hasn't happened: everything so
+> far has run on synthetic data.
 
 **M1 — Observation engine.** F3.1–F3.10 as tested pure functions. CLI report output.
 *Exit: it tells me something true I didn't already know.*
+> ✅ **Built** 2026-09-13: `fa check`, 265 tests with hand-computed expectations.
+> ⏳ The exit can only be judged against real accounts. Next: fill in the profile,
+> import the 3–4 largest accounts (D5), run `fa check`.
 
 **M2 — Goals & prioritization.** F2.x + F4.1–F4.3. The ranked action list.
 *Exit: I take an action because of it.*
@@ -420,6 +474,39 @@ The honest test isn't feature completion — it's whether the thing changes beha
 3. **Do I trust it enough to check it before a real decision?**
 4. **Zero personal-data leaks to the public repo.** Binary, non-negotiable.
 5. **Would its advice hold up if I read it back to a fee-only CFP?**
+
+## 15. Implementation status
+
+How each piece was built, and what went wrong along the way: [build log](blog/m0-m1-foundation-and-observation-engine.md).
+
+| Feature | Status | Command |
+|---|---|---|
+| F1.1 Institution sync | ⏳ Not started (D1: CSV first) | — |
+| F1.2 Declared assets | ✅ Manual accounts with hand-entered balances | `fa account-add --manual`, `fa balance` |
+| F1.3 Categorization | ⏳ Not started; M1 needed only transfer detection (D15) | — |
+| F1.4 Recurring obligations | ⏳ Not started | — |
+| F1.5 Net worth | ✅ Statement with staleness flags · ⏳ trend | `fa networth` |
+| F1.6 Liability terms | ✅ Rate, fixed/variable, minimum payment, promo end, revolving | `fa terms` |
+| F1.7 Qualitative profile | ✅ Salary, match formula, IRA/HSA, allocation target, insurance · ⏳ state, ESPP, vesting | `fa profile` |
+| Holdings | ✅ CSV import; tax lots combined; non-holding rows listed | `fa holdings` |
+| Benchmark rate | ✅ FRED DTB3, cached | `fa rates` |
+| F3.1–F3.10 | ✅ All ten checks | `fa check` |
+| F2.x, F4.x, F7.x | ⏳ M2–M4 | — |
+
+### 15.1 Known limitations
+
+- **Transfer detection is keyword-based.** A contribution worded like "VANGUARD BUY
+  ACH" isn't recognized as saving and counts as spending. The savings-rate check
+  discloses what it excluded and counted under `fa check --verbose`.
+- **Spending means total spending**, not essential spending, until categorization
+  (F1.3) exists. Setting `monthly_essential_expenses` in the profile overrides it.
+- **Monthly averages have edge effects.** A window that starts or ends mid-cycle
+  counts a partial set of paydays.
+- **CSV only** — no OFX/QFX, no sync.
+- **Sector concentration** isn't assessed; the catalog has no sector data.
+- **Display rounding** can make a flagged share look equal to its threshold (10.03%
+  shown as 10.0% while flagged for exceeding 10%).
+- **Net worth has no trend** yet.
 
 ---
 
@@ -513,6 +600,22 @@ quiet; and it forfeits G4, because there's no inspectable rule behind a recommen
 only a fluent explanation that may be post-hoc. The Observation → Recommendation
 split in §6 exists specifically so the numbers are testable and the reasoning is
 auditable.
+
+### A.7 — Implementation decisions (D9–D15)
+
+| Decision | Option not taken | Why not |
+|---|---|---|
+| D9 | Money as decimal TEXT in SQLite | Readable in the database, but `SUM()` coerces TEXT to float — putting a float back into the net-worth path through aggregation. |
+| D10 | Profile as database rows, edited through CLI flags | Tiered match formulas and target allocations are clumsy as flags and rows. A YAML file can be read and reviewed as a whole; the cost is validation, which is why the loader is strict. |
+| D10 | Profile in a gitignored `config/local.yml` inside the repo | The working tree is iCloud-synced (P4a): gitignored doesn't mean local. |
+| D11 | A single tracked catalog | Discloses holdings through the list of symbols (§9.1). |
+| D13 | Migrate automatically on connect | An upgrade rewrites tables holding the only copy of the data. It should happen on an explicit command, after a backup — not as a side effect of listing accounts. |
+| D14 | Per-institution mapping files in the repo | Disclose where you bank (P10). |
+| D15 | Exclude every row that mentions a payment | Makes spending on an unimported card vanish: its payment is the only trace of those purchases. |
+| D15 | Treat Zelle and Venmo as transfers | Rent paid by Zelle is spending. |
+
+**What would change this:** categorization with correction memory (F1.3) would let
+D15 rely on learned rules instead of keywords.
 
 ---
 
